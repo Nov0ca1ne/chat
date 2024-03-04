@@ -1,0 +1,101 @@
+<template>
+	<view class="page flex-1">
+		<!-- 导航栏 -->
+		<my-nav-bar title="" isShowBack>
+			<text>新的朋友</text>
+		</my-nav-bar>
+		<my-divider></my-divider>
+		<my-cell no-hover isSingleItem v-for="(item, index) in applyList" :key="index">
+			<view class="flex justify-between align-center" style="width: 630rpx">
+				<view class="flex align-center">
+					<u-avatar :src="item.user.avatar"></u-avatar>
+					<text class="ml-3">{{ item.user.nickname || item.user.username }}</text>
+				</view>
+				<view class="">
+					<u-button v-if="item.status === 'pending'" @click="handle(item)" class="p-2" style="height: 60rpx" size="10" color="#3B5CF0" text="同意"></u-button>
+					<text v-else class="text-muted">{{ item | formatText }}</text>
+				</view>
+			</view>
+		</my-cell>
+		<my-divider></my-divider>
+		<view v-if="applyList.length >= 10" class="flex align-center justify-center py-5 bg-light">
+			<text class="">{{ loadmore }}</text>
+		</view>
+	</view>
+</template>
+
+<script>
+import MyNavBar from '@/components/my-ui/my-nav-bar.vue';
+import MyIconButton from '@/components/my-ui/my-icon-button.vue';
+import MyCell from '@/components/my-ui/my-cell.vue';
+import MyDivider from '@/components/my-ui/my-divider.vue';
+import { mapState } from 'vuex';
+export default {
+	components: {
+		MyNavBar,
+		MyIconButton,
+		MyCell,
+		MyDivider
+	},
+
+	data() {
+		return {
+			page: 1,
+			loadmore: '上拉加载更多'
+		};
+	},
+	filters: {
+		formatText(value) {
+			let obj = {
+				agree: '已通过',
+				refuse: '已拒绝',
+				ignore: '已忽略'
+			};
+			return obj[value.status];
+		}
+	},
+	onShow() {
+		(this.page = 1), (this.loadmore = '上拉加载更多');
+		this.$store.dispatch('user/getApply', this.page);
+		// console.log(this.applyList)
+	},
+	computed: {
+		...mapState({
+			applyList: (state) => state.user.apply.list
+		})
+	},
+	onPullDownRefresh() {
+		this.page = 1;
+		this.loadmore = '上拉加载更多';
+		this.$store.dispatch('user/getApply', this.page).then((res) => {
+			uni.stopPullDownRefresh();
+		});
+	},
+	onReachBottom() {
+		if (this.loadmore !== '上拉加载更多') {
+			return;
+		}
+		this.loadmore = '加载中';
+		this.page = this.page + 1;
+		this.$store
+			.dispatch('user/getApply', this.page)
+			.then((res) => {
+				this.loadmore = this.applyList.length == this.page * 10 ? '上拉加载更多' : '没有更多了';
+			})
+			.catch((err) => {
+				this.page = this.page - 1;
+				this.loadmore = '上拉加载更多';
+			});
+	},
+	methods: {
+		handle(item) {
+			
+			uni.navigateTo({
+				url: '/pages/tabbar/friend/user-detail/add-friend/add-friend?id=' + item.id + '&sex=' + item.user.sex
+			});
+		}
+	}
+};
+</script>
+
+<style></style>

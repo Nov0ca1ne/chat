@@ -1,0 +1,147 @@
+<template>
+	<view class="page">
+		<!-- 导航栏 -->
+		<my-nav-bar bg-color="background-color: #ffffff" title="消息"></my-nav-bar>
+
+		<my-divider></my-divider>
+		<!-- 置顶列表 -->
+		<block v-for="(item, index) in list" :key="index">
+			<my-chat-list v-if="item.istop" :item="item" :index="index" @longpress="longpress"></my-chat-list>
+		</block>
+		<!-- 消息列表 （非置顶）-->
+		<block v-for="(item, index) in list" :key="index">
+			<my-chat-list v-if="!item.istop" :item="item" :index="index" @longpress="longpress"></my-chat-list>
+		</block>
+		<!-- 弹窗气泡 -->
+		<my-pop-up ref="mypopup" :body-height="getMenuHeight" :body-width="200">
+			<view class="" style="width: 200rpx" :style="getMenuStyle">
+				<view
+					v-for="(item, index) in menu"
+					@click="click(item.event)"
+					:key="index"
+					class="flex-1 align-center justify-center border-bottom"
+					:class="item.Class"
+					hover-class="bg-hover"
+				>
+					<text class="font text-white">{{ item.name }}</text>
+				</view>
+			</view>
+		</my-pop-up>
+		<!-- Modal -->
+		<u-modal showCancelButton @cancel="show = false" @confirm="deleteChat" :show="show" confirmText="删除" confirmColor="#eb5a56">
+			<text class="">删除后，将清空该聊天的消息记录</text>
+		</u-modal>
+	</view>
+</template>
+
+<script>
+import MyNavBar from '@/components/my-ui/my-nav-bar.vue';
+import MyChatList from '@/components/my-ui/my-chat-list.vue';
+import MyPopUp from '@/components/my-ui/my-pop-up.vue';
+import MyDivider from '@/components/my-ui/my-divider.vue';
+import { mapState } from 'vuex';
+import $U from '@/common/lib/util.js';
+export default {
+	components: {
+		MyNavBar,
+		MyChatList,
+		MyPopUp,
+		MyDivider
+	},
+	data() {
+		return {
+			chatIndex: -1,
+			currentChat: null,
+			show: false,
+			menu: [
+				{
+					name: '标为已读',
+					event: 'read',
+					Class: 'rounded-top'
+				},
+				{
+					name: '置顶聊天',
+					event: 'setTop',
+					Class: ''
+				},
+
+				{
+					name: '删除聊天',
+					event: 'deleteChat',
+					Class: 'rounded-bottom'
+				}
+			]
+		};
+	},
+
+	methods: {
+		// 长按弹窗
+		longpress({ x, y, index }) {
+			this.chatIndex = index; //长按获取index
+			let item = this.list[index];
+			this.menu[0].name = item.noreadnum ? '标为已读' : '标为未读';
+			this.menu[1].name = item.istop ? '取消置顶' : '置顶聊天';
+			this.$refs.mypopup.show(x, y);
+		},
+		// 标为已读/标为未读
+		read() {
+			let item = this.list[this.chatIndex];
+			if (item.noreadnum) {
+				this.chat.readChatItem(item.id, item.chat_type);
+			} else {
+				item.noreadnum = 1;
+				this.chat.updateChatItem({ id: item.id, chat_type: item.chat_type }, item);
+			}
+		},
+		// 设为置顶/取消置顶
+		setTop() {
+			let item = this.list[this.chatIndex];
+			item.istop = !item.istop;
+			this.chat.updateChatItem({ id: item.id, chat_type: item.chat_type }, item);
+		},
+		// 删除聊天
+		deleteChat() {
+			let item = this.list[this.chatIndex];
+			this.chat.removeChatItem(item.id, item.chat_type);
+			this.show = false;
+		},
+
+		click(event) {
+			switch (event) {
+				case 'read':
+					this.read();
+					break;
+				case 'setTop':
+					this.setTop();
+					break;
+				case 'deleteChat':
+					this.show = true;
+					break;
+				default:
+					break;
+			}
+		}
+	},
+	onShow() {},
+	computed: {
+		...mapState({
+			list: (state) => state.user.chatList,
+			totalNoreadnum: (state) => state.user.totalNoreadnum,
+			chat: (state) => state.user.chat
+		}),
+
+		// 获取菜单高度
+		getMenuHeight() {
+			let height = 75;
+			return this.menu.length * height;
+		},
+		//返回菜单高度样式
+		getMenuStyle() {
+			return `height:${this.getMenuHeight}rpx`;
+		}
+	},
+	mounted() {}
+};
+</script>
+
+<style></style>

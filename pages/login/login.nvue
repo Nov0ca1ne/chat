@@ -1,0 +1,100 @@
+<template>
+	<!-- 加载页 -->
+	<view v-if="show" class="position-fixed top-0 left-0 right-0 bottom-0 bg-white flex align-center justify-center">
+		<image style="transform: scale(0.8)" src="../../static/loading.gif" mode="aspectFit"></image>
+	</view>
+
+	<view v-else class="flex-1 bg-white">
+		<view class="flex-1 bg-white">
+			<view class="flex align-center justify-center" style="height: 350rpx">
+				<text class="font-super font-weight-bold">欢迎回来</text>
+			</view>
+			<view class="flex bg-input mx-5 rounded align-center px-3" style="height: 100rpx">
+				<input v-model="form.username" class="py-3 flex-1" type="text" placeholder="用户名" style="height: 100rpx" />
+			</view>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+
+			<view class="flex bg-input mx-5 rounded align-center px-3" style="height: 100rpx">
+				<input v-model="form.password" class="py-3 flex-1" password placeholder="密码" type="safe-password" style="height: 100rpx" />
+			</view>
+
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<view class="flex mx-5">
+				<view @click="login" hover-class="primary-hover" class="flex-1 mr-2 align-center justify-center bg-primary rounded px-3 pt-3 pb-3">
+					<text class="text-white">登 录</text>
+				</view>
+				<view @click="toResgister" hover-class="register-hover" style="background-color: #009688" class="flex-1 align-center justify-center rounded px-3 pt-3 pb-3">
+					<text class="text-white">注 册</text>
+				</view>
+			</view>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<view class="flex align-center justify-center">
+				<text @click="toForget" class="iconfont text-muted">忘记密码？&#xe6a3;</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+import MyDivider from '@/components/my-ui/my-divider.vue';
+import { login } from '@/api/user.js';
+import $U from '@/common/lib/util.js';
+export default {
+	components: {
+		MyDivider
+	},
+	data() {
+		return {
+			show: true,
+			form: {
+				username: '',
+				password: ''
+			}
+		};
+	},
+	created() {
+		let token = $U.getStorage('token');
+		if (!token) {
+			// 用户未登录
+			return setTimeout(() => {
+				this.show = false;
+			}, 1000);
+		}
+		// this.show = false;
+		//用户已登录
+		uni.switchTab({
+			url: '/pages/tabbar/chat/chat'
+		});
+	},
+	onLoad() {},
+	methods: {
+		login() {
+			const params = this.form;
+			login(params).then((res) => {
+				this.$store.dispatch('user/login', res);
+
+				uni.switchTab({
+					url: '/pages/tabbar/chat/chat'
+				});
+			});
+		},
+		toResgister() {
+			uni.navigateTo({
+				url: '/pages/register/register'
+			});
+		},
+		toForget() {
+			uni.navigateTo({
+				url: '/pages/forget/forget'
+			});
+		}
+	}
+};
+</script>
+
+<style></style>

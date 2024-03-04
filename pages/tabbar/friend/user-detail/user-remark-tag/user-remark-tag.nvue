@@ -1,0 +1,248 @@
+<template>
+	<view class="">
+		<!-- 导航栏 -->
+		<my-nav-bar title="" isShowBack>
+			<text>设置备注和标签</text>
+			<view @click="compelete" slot="right" class="flex justify-end pr-4">
+				<text class="text-primary">完成</text>
+			</view>
+		</my-nav-bar>
+		<my-divider></my-divider>
+		<my-divider></my-divider>
+		<!-- 备注 -->
+		<my-input v-model="nickName" maxlength="10" text="备注"></my-input>
+
+		<my-divider></my-divider>
+		<!-- 标签 -->
+		<my-cell @click="isShow" isSingleItem text="标签" isShowRight>
+			<view v-if="tagList.length !== 0" class="flex ml-5 align-center flex-wrap" style="width: 450rpx">
+				<u-tag
+					borderColor="#3B5CF0"
+					size="mini"
+					color="#3B5CF0"
+					class="mx-1 my-1"
+					shape="circle"
+					v-for="(item, index) in tagList"
+					:key="index"
+					:text="item.name"
+					plain
+					plainFill
+				></u-tag>
+			</view>
+		</my-cell>
+
+		<!-- 添加标签 -->
+		<u-popup customStyle="height:900rpx" bgColor="#f8f8f8" :show="show" round="25" mode="bottom" @close="close" @open="open">
+			<my-divider></my-divider>
+
+			<view class="flex justify-between px-4">
+				<text class="">添加标签</text>
+				<!-- <text @click="save" class="text-primary">保存</text> -->
+			</view>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<!-- 标签 -->
+			<view class="flex mx-5 align-center flex-wrap" style="">
+				<u-tag
+					borderColor="#3B5CF0"
+					size="large"
+					color="#3B5CF0"
+					class="mx-1 my-1"
+					shape="circle"
+					v-for="(item, index) in newTagList"
+					:key="index"
+					:text="item.name"
+					plain
+					plainFill
+				></u-tag>
+
+				<input
+					maxlength="10"
+					@confirm="send"
+					confirm-type="finish"
+					v-model="tag"
+					type="text"
+					class="px-2 py-1 mx-1 my-1 border-2 text-center rounded-circle"
+					placeholder="添加标签"
+					style="width: 200rpx; height: 65rpx"
+				/>
+			</view>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<text class="ml-5 text-muted">所有标签</text>
+			<view class="flex ml-5 align-center flex-wrap">
+				<u-tag
+					:borderColor="!item.closable ? '#3B5CF0' : ''"
+					:color="!item.closable ? '#3B5CF0' : ''"
+					@click="fastAdd(item, index)"
+					:type="!item.closable ? 'primary' : 'info'"
+					class="mx-1 my-1"
+					shape="circle"
+					v-for="(item, index) in allList"
+					:key="index"
+					:text="item.name"
+					plain
+					plainFill
+				></u-tag>
+			</view>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<view
+				@click="save"
+				hover-class="primary-hover"
+				style="bottom: 40rpx"
+				class="position-absolute left-0 right-0 flex align-center bg-primary justify-center rounded-circle mx-4 px-3 pt-2 pb-3"
+			>
+				<text class="text-white ml-2">保 存</text>
+			</view>
+		</u-popup>
+	</view>
+</template>
+
+<script>
+import MyNavBar from '@/components/my-ui/my-nav-bar.vue';
+import MyIconButton from '@/components/my-ui/my-icon-button.vue';
+import MyCell from '@/components/my-ui/my-cell.vue';
+import MyDivider from '@/components/my-ui/my-divider.vue';
+import MyInput from '@/components/my-ui/my-input.vue';
+import { setRemarkAndTag } from '@/api/friend.js';
+import { getAllTag } from '@/api/friend.js';
+export default {
+	components: {
+		MyNavBar,
+		MyIconButton,
+		MyCell,
+		MyDivider,
+		MyInput
+	},
+	data() {
+		return {
+			show: false,
+			id: 0,
+			tagList: [],
+			nickname: '',
+			allList: [
+				{
+					name:'朋友',
+					closable: true
+				},
+				{
+					name:'家人',
+					closable: true
+				}
+			],
+			newTagList: [],
+			tag: ''
+		};
+	},
+	methods: {
+		fastAdd(item, index) {
+			if (this.newTagList.some((item1) => item1.name == item.name) && !item.closable) {
+				let deleteIndex = this.newTagList.findIndex((item1) => {
+					return item1.name == item.name;
+				});
+
+				this.newTagList.splice(deleteIndex, 1);
+
+				this.allList[index].closable = true;
+			} else {
+				this.newTagList.push(item);
+				this.allList[index].closable = false;
+			}
+		},
+		changeNickName(e) {
+			console.log(e);
+		},
+		isShow() {
+			this.show = !this.show;
+		},
+		close() {
+			this.show = !this.show;
+		},
+		send(e) {
+			let a = this.allList.filter((item) => {
+				return item.name === this.tag;
+			});
+
+			if (a.length !== 0) {
+				return uni.showToast({
+					icon: 'error',
+					title: '标签已存在'
+				});
+			}
+			if (this.tag) {
+				this.newTagList.push({ name: e.detail.value, closable: true });
+				this.allList.push({ name: e.detail.value, closable: false });
+			}
+
+			this.tag = '';
+		},
+		save() {
+			this.tagList = JSON.parse(JSON.stringify(this.newTagList));
+			this.close();
+		},
+		//完成
+		compelete() {
+			this.tagList = this.tagList
+				.map((item) => {
+					return item.name;
+				})
+				.join(',');
+			if (this.tagList) {
+				setRemarkAndTag(this.id, { nickname: this.nickName, tags: this.tagList }).then((res) => {
+					uni.navigateBack({
+						delta: 1
+					});
+				});
+			}else{
+				console.log('空的')
+			}
+		},
+		getAllTag() {
+			getAllTag().then((res) => {
+				let value = res.map((item) => {
+					return {
+						name: item.name,
+						closable: true
+					};
+				});
+				value.map(item => {
+					this.allList.filter(v => v.name !== item.name)
+				})
+					this.allList = [...this.allList, ...value]
+				
+			});
+		}
+	},
+	onLoad(e) {
+		const params = JSON.parse(e.params);
+		this.id = params.user_id;
+		this.nickName = params.nickname;
+		this.getAllTag();
+		if (params.tags !== '') {
+			this.tagList = params.tags.split('，').map((item) => {
+				return {
+					name: item,
+					closable: false
+				};
+			});
+		}
+
+		this.newTagList = this.tagList;
+		// 点亮用户所有标签（异步等待allList）
+		setTimeout(() => {
+			this.newTagList.map((item, index) => {
+				let e = this.allList.findIndex((item1) => {
+					return item1.name == item.name;
+				});
+
+				if (e !== -1) {
+					this.allList[e].closable = false;
+				}
+			});
+		}, 1000);
+	}
+};
+</script>
+
+<style></style>

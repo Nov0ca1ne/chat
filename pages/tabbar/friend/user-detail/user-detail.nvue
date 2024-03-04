@@ -1,0 +1,354 @@
+<template>
+	<view class="bg-white" style="">
+		<!-- 导航栏 -->
+		<my-nav-bar :is-show-right="false" title="" is-cover="true" isShowBack leftClass="text-white">
+			<my-icon-button v-if="detail.friend" @click="isShow" fontClass="text-white" slot="right" :icon="'\ue684'"></my-icon-button>
+		</my-nav-bar>
+
+		<view class="position-relative" style="">
+			<view class="position-absolute flex flex-column top-0 left-0 right-0" style="">
+				<image class="position-absolute flex-1 top-0 left-0 right-0" src="@/static/images/bg.jpg" mode="widthFix"></image>
+				<view class="bg-black" style="height: 480rpx; opacity: 0.8"></view>
+			</view>
+
+			<view class="pl-5 pr-5 pt-4" style="margin-top: 130rpx">
+				<view class="flex">
+					<!-- 头像 -->
+					<u-avatar class="" style="" :src="detail.avatar" size="70"></u-avatar>
+					<view class="flex ml-3 mt-2">
+						<view class="">
+							<view class="flex position-relative" style="width: 450rpx">
+								<!-- 昵称 -->
+								<text class="text-white font-weight-bold">{{ detail.nickname }}</text>
+								<!-- 性别 -->
+								<text v-if="detail.sex === '男'" class="iconfont font-md ml-1 icon-male" style="margin-top: 8rpx">&#xe8b3;</text>
+								<text v-if="detail.sex === '女'" class="iconfont font-md ml-1 icon-female" style="margin-top: 6rpx">&#xe8b4;</text>
+								<!-- 特别关心 -->
+								<text v-if="detail.focus" class="position-absolute iconfont text-danger font-super right-0">&#xe6a4;</text>
+							</view>
+							<!-- 地区 -->
+							<text v-if="detail.area" class="font-sm text-muted mt-1">地区：{{ detail.area }}</text>
+							<!-- 用户号 -->
+							<text class="font-sm text-muted mt-1">用户号：@{{ detail.username }}</text>
+						</view>
+					</view>
+				</view>
+				<view class="" style="height: 70rpx"></view>
+			</view>
+
+			<view class="rounded-top" style="background-color: #f8f8f8">
+				<my-divider></my-divider>
+				<view v-if="detail.friend" class="" hover-class="wuyu">
+					<my-cell @click="navigate(actions[0].path)" isTopItem text="标签" isShowRight>
+						<view class="flex justify-center align-center">
+							<text class="text-muted text-ellipsis font" style="width: 380rpx; margin-left: 105rpx">{{ tags }}</text>
+						</view>
+					</my-cell>
+					<my-cell @click="navigate(actions[3].path)" isBottomItem text="朋友权限" isShowRight></my-cell>
+				</view>
+
+				<my-divider></my-divider>
+			<!-- 	<my-cell v-if="detail.friend" isSingleItem text="动态" isShowRight>
+					<view class="flex justify-center align-center">
+						<image src="../../static/images/1.jpg" class="ml-3" style="width: 80rpx; height: 80rpx"></image>
+						<image src="../../static/images/1.jpg" class="ml-3" style="width: 80rpx; height: 80rpx"></image>
+						<image src="../../static/images/1.jpg" class="ml-3" style="width: 80rpx; height: 80rpx"></image>
+						<image src="../../static/images/1.jpg" class="ml-3" style="width: 80rpx; height: 80rpx"></image>
+					</view>
+				</my-cell> -->
+				<!-- <my-cell isBottomItem text="更多信息" isShowRight></my-cell> -->
+				<my-cell v-if="!detail.friend" isSingleItem>
+					<text class="text-muted">{{ from }}</text>
+				</my-cell>
+				<my-divider></my-divider>
+
+				<view @click="toChat" v-if="detail.friend && detail.isblack == 0" hover-class="primary-hover" class="flex bg-primary align-center rounded mx-4 px-3 pt-3 pb-3">
+					<text class="iconfont text-white">&#xe888;</text>
+					<text class="text-white ml-2">发私信</text>
+				</view>
+				<view @click="addFriend" v-if="!detail.friend && detail.isblack == 0" hover-class="success-hover" class="flex align-center bg-success rounded mx-4 px-3 pt-3 pb-3">
+					<text class="iconfont text-white">&#xe62a;</text>
+					<text class="text-white ml-2">加好友</text>
+				</view>
+				<my-divider></my-divider>
+				<view v-if="detail.isblack == 1" class="flex align-center bg-grey rounded mx-4 px-3 pt-3 pb-3">
+					<text class="iconfont text-white">&#xe61e;</text>
+					<text class="text-white ml-2">该用户在黑名单</text>
+				</view>
+			</view>
+		</view>
+		<u-popup bgColor="#f8f8f8" :show="show" round="25" mode="bottom" @close="close" @open="open">
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<my-cell
+				:icon="item.icon"
+				:iconColor="item.iconColor"
+				:isTopItem="item.isTop"
+				:isBottomItem="item.isBottom"
+				:isDanger="item.isDanger"
+				v-for="(item, index) in actions"
+				:key="index"
+				:text="item.title"
+				@click="actionEvent(item, index)"
+				isShowRight
+			></my-cell>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+		</u-popup>
+		<u-modal :show="showModal" :title="title" @confirm="confirm" @cancel="closeModal" showCancelButton confirmColor="#007bff">
+			<view class="flex text-ellipsis" style="">
+				<text class="font-md text-muted" style="width: 470rpx">{{ content }}</text>
+			</view>
+		</u-modal>
+	</view>
+</template>
+
+<script>
+import MyNavBar from '@/components/my-ui/my-nav-bar.vue';
+import MyIconButton from '@/components/my-ui/my-icon-button.vue';
+import MyCell from '@/components/my-ui/my-cell.vue';
+import MyDivider from '@/components/my-ui/my-divider.vue';
+import { getUserInfo } from '@/api/user.js';
+import { setBlack, setFocus } from '@/api/friend.js';
+import { destroy } from '@/api/friend.js';
+export default {
+	components: {
+		MyNavBar,
+		MyIconButton,
+		MyCell,
+		MyDivider
+	},
+	data() {
+		return {
+			statusBarHeight: plus.navigator.getStatusbarHeight(),
+
+			show: false,
+			showModal: false,
+			clickIndex: -1,
+			title: '',
+			content: '',
+
+			tags: '',
+			tagList: [],
+			tagArr: [], //转化tagList
+			fromType: 'search',
+			detail: {
+				id: 0,
+				
+			}
+		};
+	},
+	onShow() {
+		this.getUserInfo();
+	},
+	onLoad(e) {
+		if (!e.user_id) {
+			uni.showToast({
+				title: '非法参数',
+				icon: 'none'
+			});
+			uni.navigateBack({
+				delta: 1
+			});
+			return;
+		}
+
+		this.detail.id = e.user_id;
+		this.fromType = e.from || 'search';
+	
+		// this.getUserInfo();
+	},
+
+	computed: {
+		from() {
+			if (this.fromType === 'search') return '来源于用户号搜索';
+			if (this.fromType === 'card') return '来源于好友推荐';
+			if(this.fromType === 'scanCode') return '来源于扫描二维码'
+		},
+		actions() {
+			return [
+				{
+					icon: '\ue6f8',
+					title: '设置备注和标签',
+					type: 'navigate',
+					path: `/pages/tabbar/friend/user-detail/user-remark-tag/user-remark-tag?params=${JSON.stringify({
+						user_id: this.detail.id,
+						nickname: this.detail.nickname,
+						tags: this.tags
+					})}`,
+					isTop: true,
+					iconColor: '#9E9E9E'
+				},
+				// {
+				// 	icon: '\ue6ea',
+				// 	title: '推荐给朋友',
+				// 	type: 'navigate',
+				// 	path: '/pages/tabbar/friend/user-detail/send-card/send-card',
+				// 	iconColor: '#673AB7'
+				// },
+				{
+					icon: '\ue6a4',
+					title: this.detail.focus ? '取消特别关心' : '设为特别关心',
+					type: 'event',
+					event: 'setFocus',
+					iconColor: '#eb5a56'
+				},
+				{
+					icon: '\ue662',
+					title: '朋友权限',
+					type: 'navigate',
+					path: `/pages/tabbar/friend/user-detail/user-moments-auth/user-moments-auth?user_id=${this.detail.id}&params=${JSON.stringify({
+						lookhim: this.detail.lookhim,
+						lookme: this.detail.lookme,
+						sex: this.detail.sex
+					})}`,
+					iconColor: '#4ec752'
+				},
+				{
+					icon: '\ue61e',
+					title: this.detail.isblack ? '移出黑名单' : '加入黑名单',
+					type: 'event',
+					event: 'setBlack',
+					iconColor: '#000000'
+				},
+				{
+					icon: '\ue619',
+					title: '投诉',
+					type: 'navigate',
+					path: `/pages/tabbar/friend/user-detail/user-report/user-report?params=${JSON.stringify({
+						reported_id: this.detail.id,
+						reported_type: 'user'
+					})}`,
+					iconColor: '#ffe814'
+				},
+				{
+					icon: '\ue658',
+					title: '删除好友',
+					type: 'event',
+					event: 'deleteFriend',
+					isBottom: true,
+					isDanger: true,
+					iconColor: '#eb5a56'
+				}
+			];
+		}
+	},
+	methods: {
+		// 删除好友
+		deleteFriend(){
+			uni.showModal({
+				content:'确定删除好友吗？',
+				success: (res) => {
+					if(res.confirm){
+						destroy({friend_id:this.detail.id}).then(res => {
+							uni.switchTab({
+								url:'/pages/tabbar/chat/chat'
+							})
+						})
+					}
+				}
+			})
+		},
+		addFriend() {
+			uni.navigateTo({
+				url:
+					'/pages/tabbar/friend/user-detail/add-friend/add-friend?params=' +
+					JSON.stringify({
+						friend_id: this.detail.id,
+						nickname: this.detail.nickname ? this.detail.nickname : '',
+						sex: this.detail.sex,
+						lookme: this.detail.lookme ? this.detail.lookme : 1,
+						lookhim: this.detail.lookhim ? this.detail.lookhim : 1
+					})
+			});
+		},
+		toChat() {
+			uni.navigateTo({
+				url: `/pages/privateChat/privateChat?params=${encodeURIComponent(
+					JSON.stringify({
+						id: this.detail.id,
+						name: this.detail.nickname ? this.detail.nickname : this.detail.username,
+						avatar: this.detail.avatar,
+						chat_type: 'user'
+					})
+				)}`
+			});
+		},
+		isShow() {
+			this.show = !this.show;
+		},
+		close() {
+			this.show = !this.show;
+		},
+		navigate(e) {
+			// this.transform();
+			// this.tagList = JSON.stringify(this.tagList);
+
+			uni.navigateTo({
+				url: e
+			});
+			this.tagList = [];
+		},
+
+		confirm() {
+			let isblack = this.detail.isblack == 0 ? 1 : 0;
+
+			setBlack(this.detail.id, { isblack }).then((res) => {
+				this.detail.isblack = isblack;
+			});
+			this.closeModal();
+		},
+		closeModal() {
+			this.showModal = false;
+		},
+		// 扩展菜单事件处理
+		actionEvent(item, index) {
+			if (!item.type) return;
+
+			switch (item.type) {
+				case 'navigate':
+					this.navigate(item.path);
+					break;
+				case 'event':
+					this.clickIndex = index;
+
+					this[item.event](item);
+
+					break;
+				default:
+					break;
+			}
+
+			this.close();
+		},
+		getUserInfo() {
+			getUserInfo(this.detail.id).then((res) => {
+				
+				if (res) {
+					this.detail = res;
+
+					this.detail.isblack = 0;
+
+					this.tags = this.detail.tags?.join('，');
+				}
+			});
+		},
+		setFocus(e) {
+			let focus = this.detail.focus == 0 ? 1 : 0;
+			setFocus(this.detail.id, { focus }).then((res) => {
+				this.detail.focus = focus;
+			});
+		},
+		setBlack(e) {
+			if (this.detail.isblack) {
+				return this.confirm();
+			}
+			this.showModal = true;
+			this.title = '加入黑名单';
+			this.content = '加入黑名单，你将不再收到对方的消息，并且你们相互看不到对方动态的更新';
+		}
+	}
+};
+</script>
+
+<style></style>

@@ -1,0 +1,239 @@
+{
+	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+		{
+			"path": "pages/login/login",
+			"style": {
+
+			}
+
+		},
+		{
+			"path": "pages/tabbar/chat/chat",
+			"style": {}
+
+		},
+		{
+			"path": "pages/tabbar/friend/friend",
+			"style": {
+
+			}
+		},
+		{
+			"path": "pages/tabbar/moment/moment",
+			"style": {}
+		},
+		{
+			"path": "pages/tabbar/my/my",
+			"style": {}
+
+		},
+		{
+			"path": "pages/privateChat/privateChat",
+			"style": {
+
+			}
+
+		},
+		{
+			"path": "pages/privateChat/video/video",
+			"style": {
+
+			}
+
+		},
+		{
+			"path": "pages/privateChat/chat-set/chat-set",
+			"style": {
+
+			}
+
+		},
+
+		{
+			"path": "pages/tabbar/friend/user-detail/user-detail",
+			"style": {
+
+			}
+
+		},
+		{
+			"path": "pages/tabbar/friend/user-detail/user-remark-tag/user-remark-tag",
+			"style": {
+
+			}
+
+		}
+
+		,
+		{
+			"path": "pages/tabbar/friend/user-detail/user-moments-auth/user-moments-auth",
+			"style": {
+
+			}
+
+		}, {
+			"path": "pages/tabbar/friend/user-detail/send-card/send-card",
+			"style": {
+
+			}
+
+		}, {
+			"path": "pages/tabbar/friend/user-detail/send-card/more-friends/more-friends",
+			"style": {
+
+			}
+
+		}, {
+			"path": "pages/tabbar/friend/user-detail/user-report/user-report",
+			"style": {
+
+			}
+
+		}
+
+		, {
+			"path": "pages/tabbar/my/userInfo/userInfo",
+			"style": {
+
+			}
+
+		},
+		{
+			"path": "pages/image/image",
+			"style": {
+
+			}
+
+		}, {
+			"path": "pages/tabbar/my/QRCode/QRCode",
+			"style": {
+
+			}
+
+		}, {
+			"path": "pages/search/search",
+			"style": {
+
+			}
+
+		}, {
+			"path": "pages/tabbar/moment/add-moment/add-moment",
+			"style": {
+
+			}
+
+		}
+
+		, {
+			"path": "pages/register/register",
+			"style": {
+
+			}
+
+		}, {
+			"path": "pages/forget/forget",
+			"style": {
+
+			}
+
+		}, {
+			"path": "pages/tabbar/friend/user-detail/add-friend/add-friend",
+			"style": {
+
+			}
+
+		}
+	    ,{
+            "path" : "pages/tabbar/friend/apply-list/apply-list",
+            "style" :                                                                                    
+            {
+                
+            }
+            
+        }
+        ,{
+            "path" : "pages/tabbar/friend/group-list/group-list",
+            "style" :                                                                                    
+            {
+            
+            }
+            
+        }
+        ,{
+            "path" : "pages/scanCode/scanCode",
+            "style" :                                                                                    
+            {
+                "navigationBarTitleText": "",
+                "enablePullDownRefresh": false
+            }
+            
+        }
+        ,{
+            "path" : "pages/joinGroup/joinGroup",
+            "style" :                                                                                    
+            {
+                "navigationBarTitleText": "",
+                "enablePullDownRefresh": false
+            }
+            
+        }
+        ,{
+            "path" : "pages/tabbar/my/fava/fava",
+            "style" :                                                                                    
+            {
+                "navigationBarTitleText": ""
+            }
+            
+        }
+    ],
+
+
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "chat",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#f1f1f1",
+		"app-plus": {
+			"titleNView": false
+
+
+		}
+	},
+	"tabBar": {
+		"color": "#808080",
+		"selectedColor": "#000000",
+		"borderStyle": "rgba(255, 255, 255, 0.1);",
+		"fontSize": "20px",
+		"backgroundColor": "#ffffff",
+		"height": "50rpx",
+		"list": [{
+				// "iconPath": "/static/tabbar/message.png",
+				// "selectedIconPath": "/static/tabbar/message-fill.png",
+				"pagePath": "pages/tabbar/chat/chat",
+				"text": "消息"
+
+			},
+			{
+
+				"pagePath": "pages/tabbar/friend/friend",
+				"text": "朋友"
+
+
+			},
+			// {
+
+			// 	"pagePath": "pages/tabbar/moment/moment",
+			// 	"text": "动态"
+
+			// },
+			{
+				// "iconPath": "/static/tabbar/people1.png",
+				// "selectedIconPath": "/static/tabbar/people-fill.png",
+				"pagePath": "pages/tabbar/my/my",
+				"text": "我"
+
+			}
+		]
+	},
+	"uniIdRouter": {}
+}

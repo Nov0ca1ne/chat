@@ -1,0 +1,276 @@
+<template>
+	<view class="">
+		<!-- 导航栏 -->
+		<my-nav-bar isShowBack :isShowRight="false" bg-color="background-color: #ffffff" style="">
+			<view class="flex">
+				<text class="font-lg font-weight-bold">聊天信息</text>
+			</view>
+		</my-nav-bar>
+		<view class="flex rounded flex-wrap mt-3 bg-white mx-4 pt-2 pb-2" hover-class="message-hover">
+			<view v-if="detail.chat_type === 'user'" class="flex flex-column align-center mt-1 justify-center" style="width: 165rpx">
+				<u-avatar size="50" :src="detail.avatar"></u-avatar>
+				<text class="font text-muted mt-1">{{ detail.name }}</text>
+			</view>
+			<view v-else v-for="(item, index) in list" :key="index" class="flex flex-column align-center mt-1 justify-center" style="width: 165rpx">
+				<u-avatar size="50" :src="item.avatar"></u-avatar>
+				<text class="font text-muted mt-1">{{ item.name }}</text>
+			</view>
+
+			<view v-if="detail.chat_type === 'user'" class="flex flex-column align-center mt-1 justify-center" style="width: 165rpx">
+				<view @click="openList" class="bg-input rounded-circle flex justify-center align-center" style="height: 110rpx; width: 110rpx">
+					<text class="iconfont" style="font-size: 60rpx">&#xe6da;</text>
+				</view>
+				<text class="font text-muted opacity">发起群聊</text>
+			</view>
+		</view>
+
+		<!-- <my-divider></my-divider>
+		<my-cell isSingleItem text="查找聊天记录" isShowRight></my-cell> -->
+		<my-divider></my-divider>
+		<!-- 群聊信息 -->
+		<view v-if="detail.chat_type === 'group'" class="">
+			<my-cell is-show-right isTopItem text="群聊名称" @click="update('name')" :extra="groupName"></my-cell>
+			<my-cell is-show-right text="群二维码" @click="toQrCode()" :extraIcon="'\ue601'"></my-cell>
+			<my-cell is-show-right isBottomItem text="我在本群昵称" @click="update('username')" :extra="nickname"></my-cell>
+		</view>
+		<my-divider></my-divider>
+		<my-cell isTopItem noHover text="设为置顶">
+			<u-switch slot="right" v-model="istop" @change="updateChatItem('istop')" activeColor="#3B5CF0" inactiveColor="rgb(230, 230, 230)" size="20"></u-switch>
+		</my-cell>
+		<my-cell noHover isBottomItem text="消息免打扰">
+			<u-switch slot="right" v-model="nowarn" @change="updateChatItem('nowarn')" activeColor="#3B5CF0" inactiveColor="rgb(230, 230, 230)" size="20"></u-switch>
+		</my-cell>
+		<my-divider></my-divider>
+
+		<my-cell isSingleItem text="删除聊天记录" @click="showDelete = true"></my-cell>
+		<my-divider></my-divider>
+		<view v-if="detail.chat_type === 'group'">
+			<my-cell isSingleItem @click="open">
+				<view class="flex justify-center" style="width: 610rpx">
+					<text class="text-danger">{{ isGroupUser ? '解散群聊' : '退出群聊' }}</text>
+				</view>
+			</my-cell>
+		</view>
+		<!-- 弹窗1 -->
+		<u-modal showCancelButton @cancel="cancel" @confirm="confirm" :show="show" :title="title">
+			<view class="flex-1 bg-input px-3 py-2 rounded">
+				<input type="text" v-model="text" class="font-md" placeholder="修改" />
+			</view>
+		</u-modal>
+		<!-- 弹窗2 -->
+		<u-modal :show="showModal" :title="title1" @confirm="quitGroup" @cancel="showModal = false" showCancelButton confirmColor="#007bff">
+			<view class="flex text-ellipsis" style="">
+				<text class="font-md text-muted" style="width: 470rpx">{{ content }}</text>
+			</view>
+		</u-modal>
+		<!-- Modal -->
+		<u-modal showCancelButton @cancel="showDelete = false" @confirm="deleteHistory" :show="showDelete" confirmText="清空" confirmColor="#eb5a56">
+			<text class="">确定清空该聊天记录吗？</text>
+		</u-modal>
+		<my-divider height="100"></my-divider>
+	</view>
+</template>
+
+<script>
+import MyNavBar from '@/components/my-ui/my-nav-bar.vue';
+import MyCell from '@/components/my-ui/my-cell.vue';
+import MyDivider from '@/components/my-ui/my-divider.vue';
+import { mapState } from 'vuex';
+import { getGroupInfo, rename, updateNickname, quitGroup } from '@/api/group.js';
+export default {
+	components: {
+		MyNavBar,
+		MyCell,
+		MyDivider
+	},
+	data() {
+		return {
+			detail: {},
+			list: [],
+			groupName: '',
+			nickname: '',
+			show: false,
+			showModal: false,
+			showDelete: false,
+			title: '修改',
+			title1: '',
+			text: '',
+			type: '',
+			group: {},
+			content: '',
+			istop: false,
+			nowarn: false
+		};
+	},
+	props: {},
+	onLoad(e) {
+		if (!e.params) {
+			return uni.navigateBack({
+				delta: 1
+			});
+		}
+
+		let params = JSON.parse(e.params);
+
+		// 获取当前会话详细资料
+		let res = this.chat.getChatListItem(params.id, params.chat_type);
+		if (params.chat_type === 'group') {
+			this.getGroupInfo(params.id);
+		}
+		if (res) {
+			this.detail = res;
+			this.istop = this.detail.istop ? true : false;
+			this.nowarn = this.detail.nowarn ? true : false;
+		} else {
+			this.detail = params;
+		}
+	},
+
+	methods: {
+		toQrCode() {
+			uni.navigateTo({
+				url: `/pages/tabbar/my/QRCode/QRCode?params=${encodeURIComponent(
+					JSON.stringify({
+						id: this.detail.id,
+						name: this.detail.name,
+						avatar: this.detail.avatar
+					})
+				)}&type=group`
+			});
+		},
+		openList() {
+			uni.navigateTo({
+				url: '/pages/tabbar/friend/user-detail/send-card/more-friends/more-friends?type=createGroup'
+			});
+		},
+		getGroupInfo(id) {
+			getGroupInfo(id)
+				.then((res) => {
+					this.groupName = res.name;
+					const list = res.group_users.map((v) => {
+						
+						if (v.user_id === this.user.id) {
+							this.nickname = v.nickname || v.user.nickname || v.user.username;
+						}
+						return {
+							id: v.user_id,
+							name: v.nickname || v.user.nickname || v.user.username,
+							avatar: v.user.avatar
+						};
+					});
+					this.list = list;
+					
+					this.group = res;
+				})
+				.catch((err) => {
+					uni.showToast({
+						icon: 'none',
+						title: err
+					});
+					setTimeout(() => {
+						uni.navigateBack({ delta: 1 });
+					}, 1000);
+				});
+		},
+		// 修改指定会话
+		updateChatItem(key) {
+			this.detail[key] = this[key];
+
+			this.chat.updateChatItem(
+				{
+					id: this.detail.id,
+					chat_type: this.detail.chat_type
+				},
+				this.detail
+			);
+		},
+		update(type) {
+			this.type = type;
+			switch (type) {
+				case 'name':
+					this.title = '群聊名称';
+					this.text = this.groupName;
+					break;
+				case 'username':
+					this.title = '我在本群昵称';
+					this.text = this.nickname;
+					break;
+				default:
+					break;
+			}
+			this.show = true;
+		},
+
+		confirm() {
+			if (!this.text && this.type == 'name') {
+				return uni.showToast({
+					icon: 'none',
+					title: '不能为空'
+				});
+			}
+			if (this.type == 'name') {
+				rename({ id: this.detail.id, name: this.text }).then((res) => {
+					uni.showToast({
+						title: '修改成功',
+						icon: 'none'
+					});
+					this.groupName = this.text;
+					this.text = '';
+				});
+			}
+			if (this.type == 'username') {
+				updateNickname({ id: this.detail.id, nickname: this.text }).then((res) => {
+					uni.showToast({
+						title: '修改成功',
+						icon: 'none'
+					});
+				
+						this.nickname = this.text || this.user.nickname || this.user.username
+					
+					let index = this.list.findIndex(item => {
+						return item.id === this.user.id
+					})
+					this.list[index].name = this.text || this.user.nickname || this.user.username 
+					this.text = '';
+				});
+			}
+			this.show = false;
+		},
+		cancel() {
+			this.show = false;
+		},
+		open() {
+			this.showModal = true;
+			console.log(this.isGroupUser);
+			this.content = this.isGroupUser ? '是否解散该群聊' : '是否退出该群聊';
+		},
+		// 解散/退出群聊
+		quitGroup() {
+			quitGroup({ id: this.detail.id }).then((res) => {
+				setTimeout(() => {
+					uni.switchTab({
+						url: '/pages/tabbar/chat/chat'
+					});
+				}, 1000);
+			});
+		},
+		// 删除聊天记录
+		deleteHistory() {
+			this.chat.deleteChatTable(this.detail.id, this.detail.chat_type);
+			this.showDelete = false;
+		}
+	},
+	computed: {
+		...mapState({
+			chat: (state) => state.user.chat,
+			user: (state) => state.user.user
+		}),
+		// 是否为群主
+		isGroupUser() {
+			return this.user.id === this.group.user_id;
+		}
+	}
+};
+</script>
+
+<style></style>

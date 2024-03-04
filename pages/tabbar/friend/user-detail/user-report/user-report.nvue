@@ -1,0 +1,112 @@
+<template>
+	<view class="">
+		<!-- 导航栏 -->
+		<my-nav-bar title="" isShowBack bg-color="background-color: #ffffff">
+			<text>用户投诉</text>
+			<view slot="right" class="flex justify-end pr-4">
+				<text class="text-primary" @click="submit">提交</text>
+			</view>
+		</my-nav-bar>
+		<my-divider></my-divider>
+		<u-action-sheet @select="selectClick" round="25" :actions="list" @close="close" closeOnClickOverlay closeOnClickAction :show="show"></u-action-sheet>
+		<my-cell @click="onClick" :text="form.category ? form.category : '请选择分类'" isShowRight isSingleItem></my-cell>
+		<textarea v-model="form.content" placeholder="请填写投诉内容" class="mx-4 my-2 rounded bg-white p-3 font-md"></textarea>
+	</view>
+</template>
+
+<script>
+import MyNavBar from '@/components/my-ui/my-nav-bar.vue';
+import MyCell from '@/components/my-ui/my-cell.vue';
+import MyDivider from '@/components/my-ui/my-divider.vue';
+import MyInput from '@/components/my-ui/my-input.vue';
+import { reportFriend} from '@/api/friend.js'
+export default {
+	components: {
+		MyNavBar,
+		MyCell,
+		MyDivider,
+		MyInput
+	},
+	data() {
+		return {
+			list: [
+				{
+					name: '色情'
+				},
+				{
+					name: '违法犯罪'
+				},
+				{
+					name: '赌博'
+				},
+				{
+					name: '政治谣言'
+				},
+				{
+					name: '恐怖血腥'
+				}
+			],
+
+			show: false,
+
+			form: {
+				reported_id: 0,
+				reported_type: 'user',
+				content: '',
+				category: ''
+			}
+		};
+	},
+	onLoad(e) {
+		if (!e.params) {
+			return uni.navigateBack({
+				delta: 1
+			});
+		}
+
+		const params = JSON.parse(e.params);
+		this.form.reported_id = params.reported_id;
+		this.form.reported_type = params.reported_type;
+	},
+	methods: {
+		selectClick(e) {
+			this.form.category = e.name;
+		},
+
+		close() {
+			this.show = false;
+		},
+		onClick() {
+			this.show = true;
+			uni.hideKeyboard();
+		},
+		submit() {
+			if (!this.form.category) {
+				return uni.showToast({
+					icon: 'none',
+					title: '请选择分类'
+				});
+			}
+			if (!this.form.content) {
+				return uni.showToast({
+					icon: 'none',
+					title: '请输入投诉内容'
+				});
+			}
+			reportFriend(this.form).then((res) => {
+				uni.showToast({
+					icon: 'none',
+					title: '投诉成功'
+				});
+				setTimeout(() => {
+					uni.navigateBack({ delta: 1 });
+				}, 600);
+			});
+
+			
+		}
+	}
+};
+</script>
+
+<style></style>

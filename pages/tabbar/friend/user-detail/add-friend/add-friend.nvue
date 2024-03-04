@@ -1,0 +1,128 @@
+<template>
+	<view>
+		<!-- 导航栏 -->
+		<my-nav-bar title="" isShowBack>
+			<text>添加好友</text>
+			<view @click="send" slot="right" class="flex justify-end pr-4">
+				<text class="text-primary">发送</text>
+			</view>
+		</my-nav-bar>
+		<my-divider></my-divider>
+		<!-- 备注 -->
+		<my-input v-model="form.nickname" maxlength="10" text="备注"></my-input>
+		
+		<view class="mx-4 px-3 py-2">
+			<text class="font text-muted">动态权限</text>
+		</view>
+		<my-cell isTopItem noHover :text="text1">
+			<u-switch
+				slot="right"
+				@change="form.lookme = form.lookme ? 0 : 1"
+				v-model="form.lookme ? false : true"
+				activeColor="#3B5CF0"
+				inactiveColor="rgb(230, 230, 230)"
+				size="20"
+			></u-switch>
+		</my-cell>
+		<my-cell isBottomItem noHover :text="text2" isShowRight>
+			<u-switch
+				slot="right"
+				@change="form.lookhim = form.lookhim ? 0 : 1"
+				v-model="form.lookhim ? false : true"
+				activeColor="#3B5CF0"
+				inactiveColor="rgb(230, 230, 230)"
+				size="20"
+			></u-switch>
+		</my-cell>
+	</view>
+</template>
+
+<script>
+import MyNavBar from '@/components/my-ui/my-nav-bar.vue';
+import MyIconButton from '@/components/my-ui/my-icon-button.vue';
+import MyCell from '@/components/my-ui/my-cell.vue';
+import MyDivider from '@/components/my-ui/my-divider.vue';
+import MyInput from '@/components/my-ui/my-input.vue';
+import { addFriend } from '@/api/friend.js';
+import { applyHandle } from '@/api/apply.js';
+export default {
+	components: {
+		MyNavBar,
+		MyIconButton,
+		MyCell,
+		MyDivider,
+		MyInput
+	},
+
+	data() {
+		return {
+			isTop: false,
+			text1: '',
+			text2: '',
+			form: {
+				friend_id: 0,
+				nickname: '',
+				lookhim: 1,
+				lookme: 1
+			},
+			id: null
+		};
+	},
+	onLoad(e) {
+		if (e.params) {
+			this.form = JSON.parse(e.params);
+		}
+		this.form.nickname = ''
+		if (e.id) {
+			
+			this.id = e.id;
+			this.form.sex = e.sex;
+		}
+
+		if (this.form.sex === '男') {
+			this.text1 = '不让他看我';
+			this.text2 = '不看他';
+		}
+		if (this.form.sex === '女') {
+			this.text1 = '不让她看我';
+			this.text2 = '不看她';
+		}
+		if (this.form.sex === '保密') {
+			this.text1 = '不让他(她)看我';
+			this.text2 = '不看他(她)';
+		}
+	},
+	methods: {
+		send() {
+			if (!this.id) {
+				return addFriend(this.form).then((res) => {
+					if (res) {
+						uni.showToast({
+							icon: 'none',
+							title: '申请成功'
+						});
+						setTimeout(() => {
+							uni.navigateBack({
+								delta: 1
+							});
+						}, 1000);
+					}
+				});
+			}
+
+			// 处理好友申请
+			applyHandle(this.id, { ...this.form, status: 'agree' }).then((res) => {
+				if (res) {
+					setTimeout(() => {
+						uni.navigateBack({
+							delta: 1
+						});
+					}, 1000);
+				}
+			});
+		}
+	}
+};
+</script>
+
+<style></style>

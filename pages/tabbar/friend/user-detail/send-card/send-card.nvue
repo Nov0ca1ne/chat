@@ -1,0 +1,254 @@
+<template>
+	<view class="page">
+		<!-- 导航栏 -->
+		<my-nav-bar title="" isShowBack bg-color="background-color: #ffffff">
+			<text>选择</text>
+			<view slot="right" class="flex justify-end pr-4">
+				<text v-if="multiple && selectedList.length > 0" class="text-primary" @click="send">{{ '发送(' + selectedCount + ')' }}</text>
+
+				<text v-else class="text-primary" @click="changeMul">{{ multiple ? '单选' : '多选' }}</text>
+			</view>
+		</my-nav-bar>
+
+		<!-- 搜索框 -->
+		<view class="px-3 bg-white p-3 position-fixed left-0 right-0" :style="'top:' + top + 'px'">
+			<input v-model="keyword" type="text" class="px-3 bg-input rounded-circle font" placeholder="搜索" placeholder-class="text-center" style="height: 80rpx" />
+		</view>
+		<!-- 占位 -->
+		<view style="height: 140rpx"></view>
+		<my-divider></my-divider>
+
+		<!-- 选中列表 -->
+		<scroll-view
+			ref="select"
+			scroll-x
+			class="position-fixed bg-white left-0 right-0 flex px-3 py-3 animate-list"
+			style=""
+			:style="'top:' + (top + 67) + 'px'"
+			show-scrollbar="false"
+		>
+			<u-avatar @click="deleteSelected(item)" class="mx-1" v-for="(item, index) in selectedList" :src="item.avatar"></u-avatar>
+		</scroll-view>
+		<my-divider></my-divider>
+		<view hover-class="message-hover" class="bg-white flex px-3 pt-3 pb-3">
+			<view class="flex flex-1 align-center justify-between" @click="toMore">
+				<text class="ml-2">更多联系人</text>
+				<text class="iconfont">&#xe6a3;</text>
+			</view>
+		</view>
+
+		<view class="px-2 py-2">
+			<text class="font ml-2 text-muted">{{ keyword ? '朋友' : '最近联系人' }}</text>
+		</view>
+
+		<!-- 联系人列表 -->
+		<view @click="selectItem(item)" v-for="(item, index) in ultList" :key="index" hover-class="message-hover" class="bg-white flex px-3 pt-3 pb-3">
+			<view class="flex flex-1 align-center justify-between">
+				<view class="flex align-center">
+					<u-avatar :src="item.avatar"></u-avatar>
+					<text class="ml-2">{{ item.username }}</text>
+				</view>
+				<!-- 多选框 -->
+				<view v-if="multiple" style="width: 40rpx; height: 40rpx" class="border-1 rounded-circle flex align-center justify-center">
+					<view v-if="item.checked" class="bg-primary rounded-circle flex align-center justify-center" style="height: 32rpx; width: 32rpx">
+						<text class="iconfont text-white font-sm font-weight-bold">&#xe645;</text>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<view v-if="keyword !== '' && searchList.length === 0" class="flex align-center justify-center" style="height: 100rpx">
+			<text class="font text-muted">{{ '没有"' + keyword + '"相关搜索结果' }}</text>
+		</view>
+	</view>
+
+	<!-- 发送给 -->
+	<u-popup customStyle="height:950rpx" bgColor="#f8f8f8" :show="show" round="25" mode="bottom" @close="close" @open="open">
+		<my-divider></my-divider>
+
+		<view class="flex justify-between px-4">
+			<text class="">发送给</text>
+		</view>
+		<my-divider></my-divider>
+		<my-divider></my-divider>
+		<view class="flex mx-4 flex-wrap">
+			<view class="flex align-center" v-for="(item, index) in selectedList">
+				<u-avatar class="mx-1 my-1" :src="item.avatar"></u-avatar>
+				<text v-if="selectedList.length == 1" class="ml-2 text-muted">{{ item.username }}</text>
+			</view>
+		</view>
+		<my-divider></my-divider>
+		<my-divider></my-divider>
+		<view class="bg-input mx-4 px-2 py-2 rounded">
+			<text class="text-muted">[个人名片] 洪大海</text>
+		</view>
+		<my-divider></my-divider>
+		<my-divider></my-divider>
+		<my-input text="留言"></my-input>
+		<my-divider></my-divider>
+		<my-divider></my-divider>
+		<view style="bottom: 30rpx" class="flex flex-column position-absolute left-0 right-0">
+			<view @click="save" hover-class="primary-hover" class="flex align-center bg-primary justify-center rounded-circle mx-4 px-3 pt-2 pb-3">
+				<text class="text-white ml-2">确 定</text>
+			</view>
+			<my-divider></my-divider>
+
+			<view @click="close" class="flex align-center justify-center rounded-circle mx-4 px-3 pt-2 pb-3">
+				<text class="ml-2">取 消</text>
+			</view>
+		</view>
+	</u-popup>
+</template>
+
+<script>
+import MyNavBar from '@/components/my-ui/my-nav-bar.vue';
+import MyIconButton from '@/components/my-ui/my-icon-button.vue';
+import MyCell from '@/components/my-ui/my-cell.vue';
+import MyDivider from '@/components/my-ui/my-divider.vue';
+import MyInput from '@/components/my-ui/my-input.vue';
+import {mapState} from 'vuex'
+const animation = weex.requireModule('animation');
+export default {
+	components: {
+		MyNavBar,
+		MyIconButton,
+		MyCell,
+		MyDivider,
+		MyInput
+	},
+	data() {
+		return {
+			top: 0,
+			multiple: false,
+			keyword: '', //搜索框
+			list: [
+				{ username: '昵称1', avatar: '/static/images/2.jpg', checked: false },
+				{ username: '昵称2', avatar: '/static/images/1.jpg', checked: false },
+				{ username: '昵称3', avatar: '/static/images/2.jpg', checked: false },
+				{ username: '昵称4', avatar: '/static/images/3.jpeg', checked: false },
+				{ username: '昵称5', avatar: '/static/images/2.jpg', checked: false },
+				{ username: '昵称6', avatar: '/static/images/2.jpg', checked: false },
+				{ username: '昵称7', avatar: '/static/images/2.jpg', checked: false },
+				{ username: '昵称8', avatar: '/static/images/2.jpg', checked: false },
+				{ username: '昵称9', avatar: '/static/images/2.jpg', checked: false },
+				{ username: '昵称10', avatar: '/static/images/2.jpg', checked: false },
+				{ username: '昵称11', avatar: '/static/images/2.jpg', checked: false }
+			],
+			show: false
+		};
+	},
+	computed: {
+		...mapState({
+			list: state => state.user.friendList
+		}),
+		// 选中列表
+		selectedList() {
+			return this.list.filter((item) => item.checked);
+		},
+		selectedCount() {
+			return this.selectedList.length;
+		},
+		// 搜索结果
+		searchList() {
+			if (this.keyword === '') return [];
+			return this.list.filter((item) => item.username.indexOf(this.keyword) !== -1);
+		},
+		// 最终结果
+		ultList() {
+			return this.keyword ? this.searchList : this.list;
+		}
+	},
+	methods: {
+		// 点击头像删除选中
+		deleteSelected(item) {
+			console.log(this.selectedList);
+			item.checked = false;
+		},
+		changeMul() {
+			this.multiple = !this.multiple;
+		},
+		send() {
+			this.show = true;
+		},
+		close() {
+			this.show = false;
+
+			if (!this.multiple) {
+				setTimeout(() => {
+					this.list.map((item) => {
+						if (item.checked) {
+							item.checked = false;
+						}
+					});
+				}, 200);
+			}
+		},
+		toMore() {
+			uni.navigateTo({
+				url: '/pages/tabbar/friend/user-detail/send-card/more-friends/more-friends'
+			});
+		},
+		// 选择朋友
+		selectItem(item) {
+			if (this.multiple) {
+				// 限制选中
+				if (!item.checked && this.selectedCount == 9) {
+					return uni.showToast({
+						icon: 'none',
+						title: '最多选中9个联系人'
+					});
+				}
+				// 取消选中
+				item.checked = !item.checked;
+				if (this.selectedList.length > 0) {
+					this.$nextTick(() => {
+						animation.transition(
+							this.$refs.select,
+							{
+								styles: {
+									transform: 'scaleY(1)',
+									transformOrigin: 'top',
+									opacity: 1
+								},
+								needLayout: true,
+
+								duration: 200, //ms
+								timingFunction: 'ease'
+							},
+							function () {}
+						);
+					});
+				} else {
+					animation.transition(
+						this.$refs.select,
+						{
+							styles: {
+								transform: 'scaleY(0)',
+								transformOrigin: 'top'
+							},
+							needLayout: false,
+							duration: 600, //ms
+							timingFunction: 'ease'
+						},
+						function () {}
+					);
+				}
+			} else {
+				item.checked = true;
+				this.show = true;
+			}
+		}
+	},
+	onLoad() {
+		let res = uni.getSystemInfoSync();
+		this.top = res.statusBarHeight + uni.upx2px(150);
+	}
+};
+</script>
+
+<style>
+.animate-list {
+	transform: scaleY(0);
+	opacity: 1;
+}
+</style>

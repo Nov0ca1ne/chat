@@ -1,0 +1,48 @@
+<template>
+	<view style="" class="flex-1 position-relative">
+		<!-- 占位 -->
+		<view class="flex-1 bg-black"></view>
+		<video :src="url" controls autoplay style="flex:10" class=""></video>
+		<!-- 占位 -->
+		<view class="flex-1 bg-black"></view>
+		<view @click="back" class="position-absolute" style="width: 80rpx; height: 80rpx; bottom: 15rpx; left: 30rpx">
+			<text class="iconfont font-70 text-white" style="">&#xe658;</text>
+		</view>
+	</view>
+</template>
+
+<script>
+export default {
+	data() {
+		return {
+			url: '',
+			wH: 0
+		};
+	},
+	onLoad(e) {
+		this.wH = uni.getSystemInfoSync().windowHeight;
+		if (e.url) {
+			this.url = decodeURIComponent(e.url);
+		} else {
+			uni.showToast({
+				icon: 'error',
+				title: '非法视频'
+			});
+		}
+	},
+	computed: {
+		windowHeight() {
+			return `width:${this.wH}rpx`;
+		}
+	},
+	methods: {
+		back() {
+			uni.navigateBack({
+				delta: 1
+			});
+		}
+	}
+};
+</script>
+
+<style></style>

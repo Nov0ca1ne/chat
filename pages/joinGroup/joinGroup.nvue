@@ -1,0 +1,90 @@
+<template>
+	<view class="">
+		<!-- 导航栏 -->
+		<my-nav-bar isShowBack :isShowRight="false" bg-color="background-color: #f1f1f1" style=""></my-nav-bar>
+		<my-divider></my-divider>
+		<my-divider></my-divider>
+
+		<view class="flex flex-column align-center">
+			<view class="flex flex-column align-center">
+				<u-avatar shape="square" size="80" :src="detail.avatar"></u-avatar>
+				<my-divider></my-divider>
+				<my-divider></my-divider>
+				<text class="text-center mt-2 font-lg text-ellipsis" style="width: 400rpx">{{ detail.name }}</text>
+				<text class="text-center mt-2 font-lg text-ellipsis" style="width: 400rpx">{{ `(${number})` }}</text>
+			</view>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<view @click="joinGroup" hover-class="primary-hover" class="flex bg-primary align-center rounded mx-4 px-3 pt-3 pb-3">
+				<text class="text-white">加入群聊</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+import MyNavBar from '@/components/my-ui/my-nav-bar.vue';
+import MyCell from '@/components/my-ui/my-cell.vue';
+import MyDivider from '@/components/my-ui/my-divider.vue';
+import { getGroupInfoByCode, joinGroup } from '@/api/group.js';
+export default {
+	components: {
+		MyNavBar,
+		MyCell,
+		MyDivider
+	},
+	data() {
+		return {
+			detail: {
+				id: '',
+				avatar: '',
+				name: ''
+			},
+			isGroupUser: false,
+			number: 0
+		};
+	},
+	onLoad(e) {
+		getGroupInfoByCode(JSON.parse(e.id)).then((res) => {
+			this.detail = res.group;
+			this.isGroupUser = res.isGroupUser;
+			this.number = res.group.group_users.length;
+		});
+		setTimeout(() => {
+			if (this.isGroupUser) {
+				uni.redirectTo({
+					url: `/pages/privateChat/privateChat?params=${encodeURIComponent(
+						JSON.stringify({
+							id: this.detail.id,
+							name: this.detail.name,
+							avatar: this.detail.avatar,
+							chat_type: 'group'
+						})
+					)}`
+				});
+			}
+		}, 500);
+	},
+	methods: {
+		joinGroup() {
+			joinGroup({ id: this.detail.id }).then((res) => {
+				uni.showToast({
+					icon:'none',
+					title:'加入群聊成功'
+				})
+				setTimeout(()=>{
+					uni.navigateBack({
+						delta:1
+					})
+				},1000)
+			});
+		}
+	}
+};
+</script>
+
+<style></style>

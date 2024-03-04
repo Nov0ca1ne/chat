@@ -1,0 +1,113 @@
+<template>
+	<view class="bg-white flex-1">
+		<!-- 导航栏 -->
+		<my-nav-bar :isShowRight="false" bg-color="background-color: #ffffff" style="">
+			<input
+				v-model="keyword"
+				:focus="true"
+				@confirm="search"
+				inputmode="search"
+				type="text"
+				class="font-md mx-3 bg-input rounded-circle px-3 py-1"
+				:placeholder="placeholder"
+				style="width: 590rpx; height: 70rpx"
+			/>
+			<text @click="back" class="text-primary">取消</text>
+		</my-nav-bar>
+		<my-divider></my-divider>
+		<view v-if="searchType === ''" class="">
+			<view class="py-5 flex align-center justify-center">
+				<text class="font text-light-muted">搜索指定内容</text>
+			</view>
+
+			<view class="px-4 flex flex-wrap">
+				<view class="flex align-center justify-center mb-3 border-left" style="width: 220rpx" @click="searchType = item.key" v-for="(item, index) in typeList" :key="index">
+					<text class="font text-primary">{{ item.name }}</text>
+				</view>
+			</view>
+		</view>
+		<my-cell @click="getUserInfo(item.id)" v-for="(item, index) in list">
+			<view class="flex align-center">
+				<u-avatar :src="item.avatar"></u-avatar>
+				<text class="ml-3">{{ item.nickname || item.username }}</text>
+			</view>
+		</my-cell>
+		<my-divider></my-divider>
+	</view>
+</template>
+
+<script>
+import MyNavBar from '@/components/my-ui/my-nav-bar.vue';
+import MyDivider from '@/components/my-ui/my-divider.vue';
+import MyCell from '@/components/my-ui/my-cell.vue';
+import { searchUser } from '@/api/user.js';
+export default {
+	components: {
+		MyNavBar,
+		MyCell,
+		MyDivider
+	},
+	props: {},
+	data() {
+		return {
+			searchType: '',
+			keyword: '',
+			list: [],
+			typeList: [
+				{
+					name: '聊天记录',
+					key: 'history'
+				},
+				{
+					name: '用户',
+					key: 'user'
+				},
+				{
+					name: '群聊',
+					key: 'group'
+				}
+			]
+		};
+	},
+	onLoad(e) {
+		this.searchType = e.searchType
+	},
+	methods: {
+		back() {
+			// if (this.searchType === '') {
+				uni.navigateBack({
+					delta: 1
+				});
+			// }
+			this.list = [];
+			this.searchType = '';
+		},
+		search() {
+			this.list = [];
+			if (this.searchType === 'user') {
+				searchUser({ keyword: this.keyword }).then((res) => {
+					if (res) {
+						this.list = [res];
+					}
+				});
+			} 
+		},
+		getUserInfo(id) {
+			uni.navigateTo({
+				url: '/pages/tabbar/friend/user-detail/user-detail?user_id=' + id
+			});
+		}
+	},
+	computed: {
+		placeholder() {
+			let obj = this.typeList.find((item) => item.key === this.searchType);
+			if (obj) {
+				return '搜索' + obj.name;
+			}
+			return '搜索';
+		}
+	}
+};
+</script>
+
+<style></style>

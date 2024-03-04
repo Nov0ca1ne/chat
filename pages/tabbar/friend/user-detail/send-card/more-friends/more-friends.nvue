@@ -1,0 +1,367 @@
+<template>
+	<view>
+		<!-- 导航栏 -->
+		<my-nav-bar title="" isShowBack bg-color="background-color: #ffffff">
+			<text>选择</text>
+			<view @click="compelete" slot="right" class="flex justify-end pr-4">
+				<text class="text-primary" @click="send">{{ buttonText }}</text>
+			</view>
+		</my-nav-bar>
+
+		<scroll-view class="" scroll-with-animation scroll-y="true" :style="`height:${scrollHeight}px`" :scroll-into-view="scrollInto">
+			<!-- 朋友列表 -->
+			<view v-if="item.list.length > 0" class="" v-for="(item, index) in list" :key="index" :id="'item-' + item.title">
+				<view class="py-2 px-3 bg-white">
+					<text class="font-md text-muted font-weight-bold">{{ item.title }}</text>
+				</view>
+
+				<view
+					@click="selectItem(item2)"
+					v-for="(item2, index2) in item.list"
+					:key="index2"
+					hover-class="message-hover"
+					class="bg-white justify-between align-center flex px-3 pt-3 pb-3"
+				>
+					<view class="flex align-center">
+						<u-avatar :src="item2.avatar"></u-avatar>
+						<text class="ml-2">{{ item2.name }}</text>
+					</view>
+					<!-- 多选框 -->
+					<view style="width: 40rpx; height: 40rpx" class="border-1 mr-3 rounded-circle flex align-center justify-center">
+						<view v-if="item2.checked" class="bg-primary rounded-circle flex align-center justify-center" style="height: 32rpx; width: 32rpx">
+							<text class="iconfont text-white font-sm font-weight-bold">&#xe645;</text>
+						</view>
+					</view>
+				</view>
+			</view>
+		</scroll-view>
+
+		<!-- 侧边栏 -->
+		<view
+			class="position-fixed right-0 bottom-0 bg-white flex flex-column"
+			:style="`top:${top}px`"
+			style="width: 50rpx"
+			@touchstart="touchStart"
+			@touchmove="touchMove"
+			@touchend="touchEnd"
+		>
+			<view v-for="(item, index) in list" :key="index" class="flex-1 flex align-center justify-center">
+				<text class="font-sm text-muted">{{ item.title }}</text>
+			</view>
+		</view>
+
+		<!-- 字母提示 -->
+		<view
+			v-if="current"
+			:style="'top:' + modalTop + 'px'"
+			style="width: 100rpx; height: 100rpx; right: 50rpx"
+			class="position-fixed bg-primary rounded-circle flex align-center justify-center"
+		>
+			<text class="font-lg text-white">{{ current }}</text>
+		</view>
+
+		<!-- 发送给 -->
+		<u-popup customStyle="height:700rpx" bgColor="#f8f8f8" :show="show" round="25" mode="bottom" @close="close" @open="open">
+			<my-divider></my-divider>
+
+			<view class="flex justify-between px-4">
+				<text class="">发送给</text>
+			</view>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<view class="flex mx-4 flex-wrap">
+				<view v-if="type === 'createGroup'" class="flex align-center" v-for="(item, index) in selectedList">
+					<u-avatar class="mx-1 my-1" :src="item.avatar"></u-avatar>
+					<text v-if="selectedList.length == 1" class="ml-2 text-muted">{{ item.name }}</text>
+				</view>
+				<view v-if="type === 'sendCard'" class="flex align-center">
+					<u-avatar class="mx-1 my-1" :src="params.avatar"></u-avatar>
+					<text v-if="selectedList.length == 1" class="ml-2 text-muted">{{ params.name }}</text>
+				</view>
+			</view>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<view class="bg-input mx-4 px-2 py-2 rounded">
+				<text class="text-muted">{{message}}</text>
+			</view>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<view style="bottom: 30rpx" class="flex flex-column position-absolute left-0 right-0">
+				<view @click="confirm" hover-class="primary-hover" class="flex align-center bg-primary justify-center rounded-circle mx-4 px-3 pt-2 pb-3">
+					<text class="text-white ml-2">确 定</text>
+				</view>
+				<my-divider></my-divider>
+
+				<view @click="close" class="flex align-center justify-center rounded-circle mx-4 px-3 pt-2 pb-3">
+					<text class="ml-2">取 消</text>
+				</view>
+			</view>
+		</u-popup>
+	</view>
+</template>
+
+<script>
+import MyNavBar from '@/components/my-ui/my-nav-bar.vue';
+import MyIconButton from '@/components/my-ui/my-icon-button.vue';
+import MyCell from '@/components/my-ui/my-cell.vue';
+import MyDivider from '@/components/my-ui/my-divider.vue';
+import MyInput from '@/components/my-ui/my-input.vue';
+import { mapState } from 'vuex';
+import { createGroup } from '@/api/group.js';
+const animation = weex.requireModule('animation');
+export default {
+	components: {
+		MyNavBar,
+		MyIconButton,
+		MyCell,
+		MyDivider,
+		MyInput
+	},
+	data() {
+		return {
+			top: 0,
+			show: false,
+			scrollHeight: 0,
+			scrollInto: '',
+			touchY: 0,
+			selectedList: [],
+			current: '',
+			type: '',
+			limit:9,
+			params:{}
+		};
+	},
+	onShow() {
+		// 获取通讯录列表
+		this.$store.dispatch('user/getFriendList');
+	},
+	onLoad(e) {
+		let res = uni.getSystemInfoSync();
+		this.top = res.statusBarHeight + uni.upx2px(150);
+		this.scrollHeight = res.windowHeight - this.top;
+
+		this.list.forEach((item) => {
+			item.list.map((item2) => {
+				return {
+					name: item2.name,
+					avatar: item2.avatar,
+					checked: false
+				};
+			});
+		});
+		if(e.type === 'sendCard'){
+			this.params = JSON.parse(decodeURIComponent(e.params));
+			if (e.limit) {
+				this.limit = parseInt(e.limit);
+			}
+		}
+		
+		if (e.type) {
+			this.type = e.type;
+		}
+		
+	},
+	computed: {
+		...mapState({
+			list: (state) => state.user.friendList
+		}),
+		message(){
+			if(this.type === 'createGroup'){
+				return '邀请加入群聊'
+			}else if(this.type === 'sendCard'){
+				return `[个人名片] ${this.selectedList[0]?.name}`
+			}
+		},
+		buttonText() {
+			let name = '发送';
+			if (this.type === 'createGroup') {
+				name = '创建群组';
+			}
+			return name + '(' + this.selectedCount + ')';
+		},
+		selectedCount() {
+			return this.selectedList.length;
+		},
+		// 搜索结果
+		searchList() {
+			if (this.keyword === '') return [];
+			return this.list.filter((item) => item.username.indexOf(this.keyword) !== -1);
+		},
+		// 最终结果
+		ultList() {
+			return this.keyword ? this.searchList : this.list;
+		},
+		// 侧边栏索引高度
+		itemHeight() {
+			const count = this.list.length || 0;
+			return this.scrollHeight / count;
+		},
+		modalTop() {
+			// return (this.scrollHeight - uni.upx2px(150)) / 2;
+
+			return this.touchY + this.top - uni.upx2px(100) / 2;
+		}
+	},
+	methods: {
+		// 点击头像删除选中
+		deleteSelected(item) {
+			console.log(this.selectedList);
+			item.checked = false;
+		},
+		changeMul() {
+			this.multiple = !this.multiple;
+		},
+		send() {
+			if (this.selectedCount <= 1 && this.type === 'createGroup')
+				return uni.showToast({
+					icon: 'none',
+					title: '创建群组至少选择2人'
+				});
+			
+			this.show = true;
+		},
+		close() {
+			this.show = false;
+
+			if (!this.multiple) {
+				setTimeout(() => {
+					this.list.map((item) => {
+						if (item.checked) {
+							item.checked = false;
+						}
+					});
+				}, 200);
+			}
+		},
+
+		touchStart(e) {
+			this.changeScrollInto(e);
+		},
+		touchMove(e) {
+			this.changeScrollInto(e);
+		},
+		touchEnd() {
+			this.current = '';
+		},
+		changeScrollInto(e) {
+			const Y = e.touches[0].pageY; //触摸高度
+			const i = Math.floor(Y / this.itemHeight); //计算索引
+			let index = 0;
+			if (i < 0) index = 0;
+			if (i > this.list.length - 1) {
+				index = this.list.length - 1;
+			}
+
+			if (i > 0 && i <= this.list.length - 1) {
+				index = i;
+			}
+
+			console.log(i, index);
+			if (Y > 1 + this.itemHeight * index && Y < this.itemHeight * (index + 1)) {
+				this.touchY = this.itemHeight * index + this.itemHeight / 2;
+			}
+
+			const item = this.list[index];
+			if (item) {
+				this.scrollInto = 'item-' + item.letter;
+				this.current = item.letter;
+			}
+		}, // 选择朋友
+		selectItem(item) {
+			// 限制选中
+			if (!item.checked && this.selectedCount == this.limit) {
+				return uni.showToast({
+					icon: 'none',
+					title: `最多选中${this.limit}个联系人`
+				});
+			}
+
+			item.checked = !item.checked;
+			if (item.checked) {
+				this.selectedList.push(item);
+			} else {
+				// 取消选中
+				let index = this.selectedList.findIndex((v) => v.username == item.username);
+				if (index !== -1) {
+					this.selectedList.splice(index, 1);
+				}
+			}
+			if (this.selectedList.length > 0) {
+				this.$nextTick(() => {
+					animation.transition(
+						this.$refs.select,
+						{
+							styles: {
+								transform: 'scaleY(1)',
+								transformOrigin: 'top',
+								opacity: 1
+							},
+							needLayout: true,
+
+							duration: 200, //ms
+							timingFunction: 'ease'
+						},
+						function () {}
+					);
+				});
+			} else {
+				animation.transition(
+					this.$refs.select,
+					{
+						styles: {
+							transform: 'scaleY(0)',
+							transformOrigin: 'top'
+						},
+						needLayout: false,
+						duration: 600, //ms
+						timingFunction: 'ease'
+					},
+					function () {}
+				);
+			}
+		},
+		confirm() {
+			if ((this.type === 'createGroup')) {
+				this.createGroup();
+			}
+			if(this.type === 'sendCard'){
+				let item = this.selectedList[0]
+				uni.$emit("sendCard",{
+					type:'card',
+					data:item.username,
+					options:{
+						avatar: item.avatar,
+						id:item.user_id
+					}
+				})
+				uni.navigateBack({
+					delta:1
+				})
+			}
+		},
+		createGroup() {
+			createGroup({ ids: this.selectedList.map((v) => v.user_id) }).then((res) => {
+				if (res) {
+					console.log(res)
+					uni.showToast({
+						icon: 'none',
+						title: '创建群聊成功'
+					});
+
+					setTimeout(() => {
+						uni.navigateBack({ delta: 1 });
+						console.log(this.list)
+						// this.list.list.map((item) => {
+						// 	if (item.checked) {
+						// 		item.checked = false;
+						// 	}
+						// });
+					}, 1000);
+				}
+			});
+		}
+	}
+};
+</script>
+
+<style></style>

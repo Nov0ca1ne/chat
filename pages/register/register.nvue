@@ -1,0 +1,219 @@
+<template>
+	<view class="flex-1 bg-white">
+		<view class="flex align-center justify-center" style="height: 350rpx">
+			<text class="font-super font-weight-bold">创建你的账号</text>
+		</view>
+		<view class="flex bg-input mx-5 rounded align-center px-3" style="height: 100rpx">
+			<input v-model="form.username" class="py-2 flex-1" @blur="checkUserName" type="text" placeholder="用户名" style="height: 100rpx" />
+			<text class="text-danger font-weight-bold font-sm">{{ userNameInfo }}</text>
+		</view>
+		<my-divider></my-divider>
+		<my-divider></my-divider>
+
+		<view class="flex bg-input mx-5 rounded align-center px-3" style="height: 100rpx">
+			<input @blur="checkEmail" v-model="form.email" class="py-2 flex-1 mr-2" placeholder="邮箱" type="text" style="height: 100rpx" />
+			<text class="text-danger font-weight-bold font-sm">{{ emailInfo }}</text>
+		</view>
+		<my-divider></my-divider>
+		<my-divider></my-divider>
+
+		<view class="flex bg-input mx-5 rounded align-center px-3" style="height: 100rpx">
+			<input @blur="checkPassword" v-model="form.password" class="py-2 flex-1" password placeholder="密码" type="safe-password" style="height: 100rpx" />
+			<text class="text-danger font-weight-bold font-sm">{{ passwordInfo }}</text>
+		</view>
+		<my-divider></my-divider>
+		<my-divider></my-divider>
+
+		<view class="flex bg-input mx-5 rounded align-center px-3" style="height: 100rpx">
+			<input @blur="checkRePassword" v-model="form.repassword" class="py-2 flex-1" password placeholder="确认密码" type="safe-password" style="height: 100rpx" />
+			<text class="text-danger font-weight-bold font-sm">{{ repasswordInfo }}</text>
+		</view>
+
+		<my-divider></my-divider>
+		<my-divider></my-divider>
+		<view class="flex mx-5">
+			<view @click="openVerify" hover-class="register-hover" style="background-color: #009688" class="flex-1 align-center justify-center rounded px-3 pt-3 pb-3">
+				<text class="text-white">下一步</text>
+			</view>
+		</view>
+		<my-divider></my-divider>
+		<my-divider></my-divider>
+		<view class="flex align-center justify-center">
+			<text @click="toLogin()" class="iconfont font text-muted">&#xe679; 已有账号？</text>
+		</view>
+
+		<u-popup bgColor="#f8f8f8" @close="close" :show="show" round="25" mode="bottom" custom-style="height:1200rpx">
+			<view class="flex justify-center py-3">
+				<text class="font-md font-weight-bold">发送验证码</text>
+			</view>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<view class="flex justify-center align-center">
+				<u-code-input v-model="form.yzm" size="50" maxlength="4" mode="line"></u-code-input>
+			</view>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<view class="flex justify-center py-3">
+				<text class="font mr-1">已发送验证码至</text>
+				<text class="font text-hover-primary">{{ form.email }}</text>
+			</view>
+			<my-divider></my-divider>
+			<my-divider></my-divider>
+			<view
+				@click="submit"
+				hover-class="primary-hover"
+				style="margin-left: 140rpx; margin-right: 140rpx"
+				class="flex align-center justify-center bg-primary rounded px-3 pt-3 pb-3"
+			>
+				<text class="text-white">注 册</text>
+			</view>
+		</u-popup>
+	</view>
+</template>
+
+<script>
+import MyDivider from '@/components/my-ui/my-divider.vue';
+import { checkUserName, checkEmail, sendMail, register } from '@/api/user';
+export default {
+	components: {
+		MyDivider
+	},
+	data() {
+		return {
+			show: false,
+
+			showUsernameCheckResult: false, //显示用户名校验结果
+			userNameInfo: '', //用户名校验信息
+			showEmailCheckResult: false, //显示邮箱校验结果
+			emailInfo: '', //邮箱校验信息
+			passwordInfo: '',
+			repasswordInfo: '',
+			yzmInfo: '',
+			// timeout: 0,
+			// timer:null,
+			form: {
+				username: '',
+				password: '',
+				repassword: '',
+				email: '',
+				yzm: ''
+			}
+		};
+	},
+	created() {},
+	methods: {
+		toLogin(e) {
+			uni.navigateBack({
+				delta: 1,
+				
+			});
+		},
+		close() {
+			this.show = false;
+		},
+		// 提交注册
+		submit() {
+			const params = this.form;
+			register(params).then((res) => {
+				uni.showToast({
+					icon: 'none',
+					title: '注册成功'
+				});
+				setTimeout(() => {
+					this.toLogin(this.form.username);
+				}, 500);
+			});
+			this.form.yzm = '';
+			this.show = false;
+		},
+		// 打开验证码输入弹窗
+		openVerify() {
+			if (!this.form.username || !this.form.email || !this.form.password || !this.form.repassword) {
+				this.checkEmail();
+				this.checkPassword();
+				this.checkRePassword();
+				this.checkUserName();
+				return;
+			}
+			if (this.userNameInfo || this.emailInfo || this.passwordInfo || this.repasswordInfo) {
+				return;
+			}
+
+			sendMail({ email: this.form.email });
+			// this.timeout = 60
+			// this.timer = setInterval(()=>{
+			// 	this.timeout -= 1
+			// },1000)
+			this.show = true;
+		},
+		// 验证用户名是否存在
+		checkUserName() {
+			if (!this.form.username) {
+				this.userNameInfo = '用户名不能为空';
+				return;
+			}
+			if (this.form.username.length < 5 || this.form.username.length > 20) {
+				this.userNameInfo = '用户名应该在5-20位之间';
+				return;
+			}
+			checkUserName({ username: this.form.username }).then((res) => {
+				if (res) {
+					this.userNameInfo = '用户名已被占用';
+					this.showUsernameCheckResult = true;
+				} else {
+					this.userNameInfo = '';
+					this.showUsernameCheckResult = true;
+				}
+			});
+		},
+		// 验证邮箱是否存在
+		checkEmail() {
+			if (!this.form.email) {
+				this.emailInfo = '邮箱不能为空';
+				return;
+			}
+			const reg = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+			if (!reg.test(this.form.email)) {
+				this.emailInfo = '邮箱格式错误';
+				this.showEmailCheckResult = true;
+				return;
+			}
+			checkEmail({ email: this.form.email }).then((res) => {
+				//如果被占用
+				if (res) {
+					this.emailInfo = '邮箱已被占用';
+					this.showEmailCheckResult = true;
+				} else {
+					this.emailInfo = '';
+					this.showEmailCheckResult = true;
+				}
+			});
+		},
+		//校验密码
+		checkPassword() {
+			if (!this.form.password) {
+				this.passwordInfo = '密码不能为空';
+				return;
+			}
+			if (this.form.password.length < 6 || this.form.password.length > 20) {
+				this.passwordInfo = '密码长度应该在6-20位之间';
+			} else {
+				this.passwordInfo = '';
+			}
+		},
+		checkRePassword() {
+			if (!this.form.repassword) {
+				this.repasswordInfo = '确认密码不能为空';
+				return;
+			}
+			if (this.form.repassword !== this.form.password) {
+				this.repasswordInfo = '两次输入的密码不一致';
+			} else {
+				this.repasswordInfo = '';
+			}
+		}
+	}
+};
+</script>
+
+<style></style>

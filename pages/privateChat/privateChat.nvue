@@ -1,0 +1,1150 @@
+<template>
+	<view class="page">
+		<!-- 聊天内容区域 -->
+		<list
+			scrollable
+			ref="chatContent"
+			:loadmoreoffset="10"
+			@click="clickPage"
+			@loadmore="loadmore"
+			show-scrollbar="false"
+			class="bg-white position-fixed left-0 right-0 pl-3 pr-3"
+			style="transform: rotate(180deg)"
+			:style="chatBodyBottom"
+		>
+			<cell style="flex: 1"></cell>
+			<!-- 聊天列表-->
+			<cell v-for="(item, index) in list" :key="item.message_id" :ref="'chatItem_' + item.message_id" style="transform: rotate(180deg)">
+				<my-chat-item
+					ref="chatItem"
+					:preTime="index > 0 ? list[index - 1].create_time : 0"
+					:isShowAvatar="showAvatar(index)"
+					:key="'key' + index"
+					:item="item"
+					:index="index"
+					@longpress="longpress"
+					@preview="previewImage"
+				></my-chat-item>
+			</cell>
+		</list>
+
+		<!-- 底部输入框 -->
+		<view ref="isInput" class="position-fixed bg-white left-0 right-0 bottom-0">
+			<view class="">
+				<view class="position-relative flex align-center m-2 rounded-circle bg-input" :style="`height:${textHeight}rpx`">
+					<!-- 语音按钮 -->
+					<my-icon-button
+						class="rounded-circle ml-1"
+						:class="showAudio ? 'bg-success' : 'bg-purple'"
+						height="70"
+						width="70"
+						:font-style="'font-size:20;color:white'"
+						:icon="showAudio ? '\ue62f' : '\ue71b'"
+						style=""
+						@click="changeAudio"
+					></my-icon-button>
+
+					<view class="flex-1">
+						<!-- 语音输入框 -->
+						<view
+							v-if="!showAudio"
+							class="pt-2 pb-2 pl-2 justify-center align-center"
+							:style="`height:${textHeight}rpx`"
+							@touchstart="voiceTouchStart"
+							@touchend="voiceTouchEnd"
+							@touchcancel="voiceTouchCancel"
+							@touchmove="voiceTouchMove"
+						>
+							<text class="font-weight-bold">按住 说话</text>
+						</view>
+						<!-- 文字输入框 -->
+						<textarea
+							ref="textarea"
+							v-if="showAudio"
+							:cursor="cursor"
+							v-model="message"
+							:adjust-position="false"
+							@linechange="linechange"
+							max-length="200"
+							fixed
+							placeholder="发送消息"
+							class="pt-2 pb-2 pl-2 font-md"
+							:style="`height:${textHeight}rpx`"
+						></textarea>
+					</view>
+					<!-- 表情 -->
+					<my-icon-button class="" @click="openEmoji" :font-style="'font-size:33;'" :icon="'\ue64a'"></my-icon-button>
+					<!-- 发送 -->
+					<view ref="isValue" class="justify-center align-center bg-primary rounded-circle mr-1 send-animate" @click="send('text', message)">
+						<text class="iconfont text-white">&#xe888;</text>
+					</view>
+					<!-- 拓展 -->
+					<my-icon-button
+						@click="openMore"
+						v-if="!send_status"
+						class="position-absolute right-0"
+						:font-style="'font-size:33;'"
+						:icon="show ? '\ue659' : '\ue6d9'"
+					></my-icon-button>
+				</view>
+			</view>
+
+			<!-- 表情包菜单 -->
+			<view ref="emojiMenu" class="bg-white animate-more position-fixed left-0 right-0 bottom-0">
+				<!-- 表情栏 -->
+				<view class="emoji border-bottom">
+					<text class="iconfont font-60 ml-3 p-1" @click="changeActive" :class="{ 'emoji-active': isActive }">{{ '\ue64a' }}</text>
+					<view
+						class="ml-5 p-1"
+						@tap="changeActive2(index, item.url, item.total)"
+						v-for="(item, index) in emojiUrl"
+						:class="{ 'emoji-active': item.isActive }"
+						:key="index"
+					>
+						<image :src="item.url + '0.gif'" style="height: 60rpx; width: 60rpx"></image>
+					</view>
+				</view>
+
+				<!-- 表情 -->
+				<view v-if="isActive"><emoji @sendEmoji="sendEmoji" @deleteEmoji="deleteEmoji"></emoji></view>
+				<scroll-view v-if="!isActive" scroll-y :show-indicators="emojiList > 1" style="height: 510rpx">
+					<view class="row" v-for="(item, index) in emojiList" :key="index">
+						<view
+							class="flex flex-column align-center justify-center"
+							style="height: 255rpx; width: 185rpx"
+							v-for="(item2, index2) in item"
+							:key="index2"
+							@click="actionEvent(item2)"
+						>
+							<image class="" :src="item2.icon" mode="widthFix" style="width: 150rpx; height: 150rpx"></image>
+							<text class="font-sm text-muted mt-2">{{ item2.name }}</text>
+						</view>
+					</view>
+				</scroll-view>
+			</view>
+
+			<!-- 拓展菜单 -->
+			<view ref="moreMenu" class="bg-white animate-more position-fixed left-0 right-0 bottom-0">
+				<swiper class="" :indicator-dots="actionList.length > 1" style="height: 510rpx">
+					<swiper-item class="row justify-start" v-for="(item, index) in actionList" :key="index">
+						<view v-for="(item2, index2) in item" :key="index2" class="col-3 flex flex-column align-center justify-center" style="height: 255rpx">
+							<view
+								hover-class="bg-hover-light"
+								@click="actionEvent(item2)"
+								class="iconfont flex justify-center align-center rounded bg-input"
+								style="height: 120rpx; width: 120rpx"
+							>
+								<text class="iconfont font-70">{{ item2.icon }}</text>
+							</view>
+							<text class="font mt-2">{{ item2.name }}</text>
+						</view>
+					</swiper-item>
+				</swiper>
+			</view>
+		</view>
+
+		<!-- 导航栏 -->
+		<my-nav-bar
+			:num="num"
+			:chat_type="detail.chat_type"
+			:avatar="detail.avatar"
+			:nickname="detail.name"
+			:user_id="detail.id"
+			isShowBack
+			isShowUser
+			bg-color="background-color: #ffffff"
+			style=""
+		>
+			<my-icon-button @click="toChatSet" fontClass="mr-4" slot="right" :icon="'\ue684'"></my-icon-button>
+		</my-nav-bar>
+
+		<!-- 弹窗气泡 -->
+		<my-pop-up ref="mypopup" tabbar-height="150" body-height="100" body-width="300">
+			<view class="flex flex-wrap" style="width: 300rpx; height: 100rpx">
+				<view
+					v-for="(item, index) in getMenuList"
+					@click="click(item.event)"
+					:key="index"
+					class="flex flex-column align-center justify-center"
+					:class="item.Class"
+					hover-class="text-hover"
+					style="width: 100rpx; height: 100rpx"
+				>
+					<text class="iconfont text-white">{{ item.icon }}</text>
+					<text class="font-sm text-white mt-1">{{ item.name }}</text>
+				</view>
+			</view>
+		</my-pop-up>
+
+		<!-- 录音提示 -->
+
+		<view ref="record1" class="position-fixed rounded-circle bg-white right-0 bottom-0 left-0 flex-column align-center flex" style="height: 500rpx; opacity: 0">
+			<text class="mt-4 font-weight-bold">{{ cancelRecord ? '松手取消' : '松手发送，上滑取消' }}</text>
+			<view ref="record2" class="flex mt-3 justify-center align-center rounded-circle bg-input" style="height: 100rpx; width: 100rpx">
+				<text class="iconfont font-super font-weight-bold" :class="cancelRecord ? 'text-white' : ''">&#xe646;</text>
+			</view>
+		</view>
+		<view class="position-fixed flex justify-center" style="height: 90rpx; bottom: 10; left: 0; right: 0">
+			<view ref="record" class="animate-record flex flex-row px-4 align-center rounded-0 bg-primary" style="width: 710rpx">
+				<image src="../../static/audio/recording.gif" style="width: 500rpx; height: 80rpx"></image>
+				<text class="text-white font-weight-bold ml-4">{{ RecordTime }} "</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+import MyNavBar from '@/components/my-ui/my-nav-bar.vue';
+import MyChatItem from '@/components/my-ui/my-chat-item.vue';
+import MyIconButton from '@/components/my-ui/my-icon-button.vue';
+import MyPopUp from '@/components/my-ui/my-pop-up.vue';
+import emoji from '@/components/emoji.vue';
+import $C from '@/common/lib/config.js';
+import $U from '@/common/lib/util.js';
+import { getGroupNum } from '@/api/group.js';
+import { favaCreate } from '@/api/fava.js';
+import { mapState, mapMutations } from 'vuex';
+const dom = weex.requireModule('dom');
+const animation = weex.requireModule('animation');
+export default {
+	components: {
+		MyNavBar,
+		MyPopUp,
+		MyIconButton,
+		MyChatItem,
+		emoji
+	},
+	data() {
+		return {
+			page: 1,
+			touchingY: 0, //手指滑动Y值
+			cancelRecord: false, //取消录音
+			isRecording: false, //开始录音
+			a: 0,
+			textHeight: 90, //输入框高度
+			cursor: 0, //输入框光标位置
+			isActive: false,
+			isActive1: false,
+			show: false,
+			showEmoji: false, //表情菜单开关
+			showAudio: true, //语音按钮切换
+			send_status: false,
+			navBarHeight: 0,
+			keyboardHeight: 0, //键盘高度
+			clickHeight: 293, //占位高度
+			message: '', // 输入框内容
+			chatItemIndex: -1,
+			scrollIntoView: 0,
+			emojiList: [], //表情包
+			detail: {},
+			num: 0,
+			menu: [
+				{
+					name: '复制',
+					event: 'copy',
+					icon: '\ue84b'
+				},
+				// {
+				// 	name: '转发',
+				// 	event: '',
+				// 	icon: '\ue84a'
+				// },
+				{
+					name: '收藏',
+					event: 'fava',
+					icon: '\ue64c'
+				},
+				// {
+				// 	name: '撤回',
+				// 	event: 'removeChat',
+				// 	icon: '\ue904'
+				// },
+				{
+					name: '删除',
+					event: 'delete',
+					icon: '\ue6b4'
+				}
+			],
+
+			list: [],
+			actionList: [
+				[
+					{
+						name: '相册',
+						icon: '\ue72c',
+						event: 'uploadImage'
+					},
+					{
+						name: '视频',
+						icon: '\ue7a4',
+						event: 'uploadVideo'
+					},
+					{
+						name: '名片',
+						icon: '\ue77a',
+						event: 'sendCard'
+					},
+					{
+						name: '位置',
+						icon: '\ue650',
+						event: 'position'
+					}
+				]
+			],
+
+			emojiUrl: $C.emojiUrl
+		};
+	},
+	onShow() {
+		$U.setStorage('isCurrentChat', this.chat.getChatObject());
+		// 获取历史聊天记录
+		this.chat.getChatHistory().then((res) => {
+			res.forEach((item) => {
+				item.options = JSON.parse(item.options);
+				if (typeof item.options === 'string') {
+					// item.options = JSON.parse(item.options);
+				}
+			});
+
+			this.list = res;
+		});
+	},
+	onLoad(e) {
+		if (!e.params) {
+			return uni.navigateBack({
+				delta: 1
+			});
+		}
+
+		const params = JSON.parse(decodeURIComponent(e.params));
+
+		this.detail = params;
+
+		if (params.chat_type == 'group') {
+			getGroupNum(this.detail.id).then((res) => {
+				this.num = res;
+			});
+		}
+
+		// 创建聊天对象
+		this.chat.createChatObject(this.detail);
+
+		uni.$on('onMessage', this.onMessage);
+		// 监听发送名片
+		uni.$on('sendCard', this.sendCard);
+	},
+	beforeDestroy() {
+		this.chat.destoryChatObject();
+		uni.$off('onMessage', this.onMessage);
+		uni.$off('sendCard', this.sendCard);
+		$U.setStorage('isCurrentChat', false);
+	},
+	methods: {
+		...mapMutations('audio', ['regSendVoiceEvent']),
+		sendCard(item) {
+			this.send(item.type, item.data, item.options);
+		},
+		onMessage(message) {
+			if ((message.from_id === this.detail.id && message.chat_type === this.detail.chat_type) || (message.chat_type === 'group' && message.to_id === this.detail.id)) {
+				console.log('options', typeof message.options);
+				/* bug */
+				if (typeof message.options === 'object') {
+					message.options = JSON.stringify(message.options);
+					console.log(message.options);
+				} else {
+					message.options = JSON.parse(message.options);
+					console.log(message.options);
+				}
+
+				this.list.unshift(message);
+				this.list = this.chat.msgTimeFormat1(this.list);
+				if (message.type === 'user') {
+					this.detail.name = message.from_name;
+					this.detail.avatar = message.from_avatar;
+				}
+			}
+		},
+		// 触顶分页
+		loadmore(e) {
+			this.page += 1;
+			// 获取历史记录
+			this.chat.getChatHistory({ page: this.page }).then((res) => {
+				if (res.length > 0) {
+					this.list.push(...res);
+				} else {
+					this.page -= 1;
+				}
+			});
+		},
+
+		changeAudio() {
+			this.showAudio = !this.showAudio;
+			if (!this.showAudio) {
+				uni.hideKeyboard();
+				this.keyboardHeight = 0;
+				this.InputAnimate(this.keyboardHeight, 300);
+				this.closeEmoji();
+				this.closeMore();
+			}
+		},
+		// 预览图片
+		previewImage(url) {
+			uni.previewImage({
+				current: url,
+				urls: this.imageList
+			});
+		},
+		// 输入框加表情
+		sendEmoji(emoji) {
+			this.$refs.textarea.getSelectionRange((res) => {
+				// 字符串转为数组
+				const arr = this.message.split('');
+				// 在指定位置插入字符
+				arr.splice(res.selectionEnd, 0, emoji);
+				let newStr = arr.join('');
+				this.message = newStr;
+				// 恢复光标位置
+
+				this.cursor = res.selectionEnd + emoji?.length;
+			});
+			// this.message = this.message + emoji;
+		},
+		// 删除输入框表情，拆分为数组处理，再拼接为字符串
+		deleteEmoji() {
+			let strArr = Array.from(this.message);
+			strArr.pop();
+			this.message = strArr.join('');
+			this.cursor -= 2;
+		},
+		changeActive() {
+			this.isActive = true;
+
+			this.emojiUrl.forEach((item) => {
+				this.$set(item, 'isActive', false);
+			});
+		},
+		changeActive2(index, url, total) {
+			this.isActive = false;
+
+			this.__init(index, url, total);
+		},
+		// 渲染表情包
+		__init(index, url, total) {
+			this.emojiUrl.forEach((item) => {
+				this.$set(item, 'isActive', false);
+			});
+			let item = this.emojiUrl[index];
+			this.$set(item, 'isActive', true);
+			let page = Math.ceil(total / 8);
+			let arr = [];
+			for (let i = 0; i < page; i++) {
+				let start = i * 8;
+				arr[i] = [];
+				for (let j = 0; j < 8; j++) {
+					let num = start + j;
+					if (num + 1 > total) {
+						continue;
+					}
+					arr[i].push({
+						name: '表情' + num,
+						icon: url + num + '.gif',
+						event: 'sendEmotion'
+					});
+				}
+			}
+			this.emojiList = arr;
+		},
+		clickPage() {
+			//键盘升降
+			if (!this.show && !this.showEmoji && this.keyboardHeight > 0) {
+				uni.hideKeyboard();
+
+				this.InputAnimate(this.keyboardHeight, 300);
+			} else {
+				this.keyboardHeight = 0;
+				this.InputAnimate(this.keyboardHeight, 300);
+				this.closeMore();
+				this.closeEmoji();
+			}
+		},
+		//发送消息
+		send(type, data, options = '{}') {
+			const Msg = this.chat.formatSendData({ type, data, options });
+
+			console.log(Msg);
+
+			// 发送服务器
+			this.chat
+				.send(Msg)
+				.then((res) => {
+					// 渲染到页面
+					this.list.unshift(Msg);
+					// 发送成功
+					this.list[0].message_id = res.message_id;
+					this.list[0].send_status = 'success';
+					// 视频封面
+					if (Msg.type === 'video') {
+						this.list[0].options = res.options;
+					} else {
+						console.log(res.options);
+						this.list[0].options = res.options;
+					}
+				})
+				.catch((err) => {
+					console.log(err);
+					this.list[0].send_status = 'fail';
+				});
+
+			if (type === 'text') {
+				this.message = '';
+			}
+		},
+
+		// 打开更多菜单
+		openMore() {
+			this.show = !this.show;
+			this.showAudio = true;
+			uni.hideKeyboard();
+
+			if (this.show && this.keyboardHeight == 0) {
+				this.keyboardHeight = 293;
+
+				this.InputAnimate(this.keyboardHeight, 300);
+				animation.transition(
+					this.$refs.moreMenu,
+					{
+						styles: {
+							height: '610rpx'
+						},
+						needLayout: true,
+						duration: 300, //ms
+						timingFunction: 'ease'
+					},
+					() => {}
+				);
+			}
+			if (!this.show) {
+				this.keyboardHeight = 0;
+				this.InputAnimate(this.keyboardHeight, 300);
+				this.closeMore();
+			}
+
+			// 打开表情时点击拓展
+			if (this.showEmoji) {
+				this.closeEmoji();
+				animation.transition(
+					this.$refs.moreMenu,
+					{
+						styles: {
+							height: '610rpx'
+						},
+						needLayout: true,
+						duration: 300, //ms
+						timingFunction: 'ease'
+					},
+					() => {}
+				);
+			}
+		},
+
+		closeMore() {
+			this.show = false;
+
+			animation.transition(
+				this.$refs.moreMenu,
+				{
+					styles: {
+						height: '0rpx'
+					},
+					needLayout: true,
+					duration: 300, //ms
+					timingFunction: 'ease-out'
+				},
+				() => {}
+			);
+		},
+
+		// 打开表情菜单
+		openEmoji() {
+			this.showEmoji = !this.showEmoji;
+			this.showAudio = true;
+			this.changeActive();
+			uni.hideKeyboard();
+
+			if (this.showEmoji && this.keyboardHeight == 0) {
+				this.keyboardHeight = 293;
+				this.InputAnimate(this.keyboardHeight, 300);
+				animation.transition(
+					this.$refs.emojiMenu,
+					{
+						styles: {
+							height: '610rpx'
+						},
+						needLayout: true,
+						duration: 300, //ms
+						timingFunction: 'ease'
+					},
+					() => {}
+				);
+			}
+			if (!this.showEmoji) {
+				this.keyboardHeight = 0;
+				this.InputAnimate(this.keyboardHeight, 300);
+				this.closeEmoji();
+			}
+
+			// 打开拓展时点击表情
+			if (this.show) {
+				this.closeMore();
+				animation.transition(
+					this.$refs.emojiMenu,
+					{
+						styles: {
+							height: '610rpx'
+						},
+						needLayout: true,
+						duration: 300, //ms
+						timingFunction: 'ease'
+					},
+					() => {}
+				);
+			}
+		},
+		closeEmoji() {
+			this.showEmoji = false;
+			this.isActive = false;
+			animation.transition(
+				this.$refs.emojiMenu,
+				{
+					styles: {
+						height: '0rpx'
+					},
+					needLayout: true,
+					duration: 300, //ms
+					timingFunction: 'ease-out'
+				},
+				() => {}
+			);
+		},
+
+		// 输入框上滑动画
+		InputAnimate(height, time) {
+			animation.transition(
+				this.$refs.isInput,
+				{
+					styles: {
+						transform: `translateY(-${height}rpx)`
+					},
+
+					duration: time, //ms
+					timingFunction: 'ease'
+				},
+				function () {}
+			);
+			animation.transition(
+				this.$refs.chatContent,
+				{
+					styles: {
+						transform: `translateY(-${height}rpx) rotate(180deg)`
+					},
+
+					duration: time, //ms
+					timingFunction: 'ease'
+				},
+				function () {}
+			);
+		},
+		//滚动到底部
+		pageToBottom(value) {
+			this.$nextTick(() => {
+				setTimeout(() => {
+					let chatItem = this.$refs.chatItem;
+					let lastIndex = chatItem?.length > 0 ? chatItem?.length - 1 : 0;
+					let last = chatItem[lastIndex];
+
+					if (last) {
+						dom.scrollToElement(last, { animated: value });
+					}
+				}, 59);
+			});
+		},
+		// 如果重复就不显示头像
+		showAvatar(index) {
+			if (this.list[index + 1]?.from_id !== this.list[index]?.from_id || this.list[index + 1]?.type === 'system') {
+				return true;
+			} else {
+				return false;
+			}
+		},
+		//按住说话
+		voiceTouchStart() {
+			console.log('按住');
+			this.isRecording = true;
+
+			this.Record.start();
+			animation.transition(
+				this.$refs.record,
+				{
+					styles: {
+						transform: 'scaleX(1)',
+						opacity: 1
+					},
+
+					duration: 200, //ms
+					timingFunction: 'ease'
+				},
+				() => {}
+			);
+			animation.transition(
+				this.$refs.record1,
+				{
+					styles: {
+						opacity: 0.8
+					},
+
+					duration: 200, //ms
+					timingFunction: 'ease'
+				},
+				() => {}
+			);
+		},
+		voiceTouchEnd() {
+			console.log('松开');
+			this.Record.stop();
+			animation.transition(
+				this.$refs.record,
+				{
+					styles: {
+						transform: 'scaleX(0)',
+						opacity: 0
+					},
+
+					duration: 150, //ms
+					timingFunction: 'ease'
+				},
+				() => {}
+			);
+			animation.transition(
+				this.$refs.record1,
+				{
+					styles: {
+						opacity: 0
+					},
+
+					duration: 150, //ms
+					timingFunction: 'ease'
+				},
+				() => {
+					this.isRecording = false;
+
+					this.cancelRecord = false;
+				}
+			);
+			animation.transition(
+				this.$refs.record,
+				{
+					styles: {
+						backgroundColor: '#3B5CF0'
+					},
+
+					duration: 0, //ms
+					timingFunction: 'ease'
+				},
+				() => {}
+			);
+			animation.transition(
+				this.$refs.record2,
+				{
+					styles: {
+						backgroundColor: '#efefef',
+						transform: 'scale(1,1)'
+					},
+
+					duration: 0, //ms
+					timingFunction: 'ease'
+				},
+				() => {}
+			);
+		},
+		voiceTouchCancel() {
+			console.log('中断');
+			this.Record.stop();
+			this.isRecording = false;
+		},
+		voiceTouchMove(e) {
+			let Y = e.changedTouches[0].pageY;
+			this.cancelRecord = Y < -80;
+
+			if (this.cancelRecord && this.isRecording) {
+				animation.transition(
+					this.$refs.record,
+					{
+						styles: {
+							backgroundColor: '#dc3545'
+						},
+
+						duration: 100, //ms
+						timingFunction: 'ease'
+					},
+					() => {}
+				);
+				animation.transition(
+					this.$refs.record2,
+					{
+						styles: {
+							backgroundColor: '#dc3545',
+							transform: 'scale(1.2,1.2)'
+						},
+
+						duration: 100, //ms
+						timingFunction: 'ease'
+					},
+					() => {}
+				);
+			}
+			if (!this.cancelRecord && this.isRecording) {
+				animation.transition(
+					this.$refs.record,
+					{
+						styles: {
+							backgroundColor: '#3B5CF0'
+						},
+
+						duration: 0, //ms
+						timingFunction: 'ease'
+					},
+					() => {}
+				);
+				animation.transition(
+					this.$refs.record2,
+					{
+						styles: {
+							backgroundColor: '#efefef',
+							transform: 'scale(1,1)'
+						},
+
+						duration: 0, //ms
+						timingFunction: 'ease'
+					},
+					() => {}
+				);
+			}
+		},
+
+		//聊天设置页
+		toChatSet() {
+			uni.navigateTo({
+				url: `/pages/privateChat/chat-set/chat-set?params=${JSON.stringify({
+					id: this.detail.id,
+					chat_type: this.detail.chat_type
+				})}`
+			});
+		},
+
+		// 长按弹窗
+		longpress({ x, y, index }) {
+			const id = 1;
+			this.chatItemIndex = index; //长按获取index
+
+			this.$refs.mypopup.show(x, y);
+		},
+		// 菜单事件
+		click(event) {
+			const item = this.list[this.chatItemIndex];
+			switch (event) {
+				case 'copy':
+					uni.setClipboardData({
+						data: item.data,
+						success: () => {
+							uni.showToast({
+								icon: 'none',
+								title: '复制成功'
+							});
+						}
+					});
+					break;
+
+				case 'delete':
+					this.chat.deleteChatMessage(item);
+					this.list.splice(this.chatItemIndex, 1);
+					// 如果删除的是最新的消息
+					if (this.chatItemIndex === 0) {
+						this.chat.updateChatItem({ id: this.detail.id, chat_type: this.detail.chat_type }, (v) => {
+							let o = this.list[0];
+							let data = '';
+							if (o) {
+								data = this.chat.formatChatItemData(o, this.isUserSelf);
+							}
+							v.data = data;
+							return v;
+						});
+					}
+					break;
+				case 'fava':
+					favaCreate({ type: item.type, data: item.data, options: item.options, name: this.detail.name }).then((res) => {
+						uni.showToast({
+							icon: 'none',
+							title: '收藏成功'
+						});
+					});
+					break;
+				default:
+					break;
+			}
+		},
+		// 拓展菜单事件
+		actionEvent(e) {
+			switch (e.event) {
+				case 'sendEmotion': //发送表情包
+					this.send('emoji', e.icon);
+					break;
+				case 'uploadImage': //发送图片
+					uni.chooseImage({
+						sourceType: ['album'], //从相册选择
+						success: (res) => {
+							//临时路径
+							const images = res.tempFilePaths;
+
+							//发送到服务器
+							// 发送到页面
+							images.forEach((item) => {
+								this.send('image', item);
+							});
+						}
+					});
+
+					break;
+				case 'uploadVideo': //发送视频
+					uni.chooseVideo({
+						maxDuration: 30,
+						success: (res) => {
+							const src = res.tempFilePath;
+							this.send('video', src);
+						}
+					});
+					break;
+				case 'position': //发送位置
+					uni.chooseLocation({
+						success: (res) => {
+							let data = {
+								name: res.name,
+								address: res.address,
+								latitude: res.latitude,
+								longitude: res.longitude
+							};
+
+							this.send('position', JSON.stringify(data));
+						}
+					});
+
+					break;
+				case 'sendCard': //发送名片
+					uni.navigateTo({
+						url: `/pages/tabbar/friend/user-detail/send-card/more-friends/more-friends?type=sendCard&limit=1&params=${encodeURIComponent(
+							JSON.stringify({
+								name: this.detail.name,
+								avatar: this.detail.avatar
+							})
+						)}`
+					});
+					break;
+				default:
+					break;
+			}
+		}
+	},
+	mounted() {
+		// 监听键盘高度变化
+		uni.onKeyboardHeightChange((res) => {
+			this.keyboardHeight = res.height;
+
+			//键盘升降
+			if (!this.show && !this.showEmoji) {
+				this.InputAnimate(this.keyboardHeight, 300);
+				if (this.keyboardHeight !== 0) {
+					this.clickHeight = this.keyboardHeight;
+				}
+			}
+
+			// 输入框打开时点击拓展按钮
+			if (this.show && this.keyboardHeight == 0) {
+				this.InputAnimate(293, 300);
+				this.clickHeight = 293;
+				animation.transition(
+					this.$refs.moreMenu,
+					{
+						styles: {
+							height: '610rpx'
+						},
+						needLayout: true,
+						duration: 0, //ms
+						timingFunction: 'ease-in'
+					},
+					() => {}
+				);
+			}
+
+			// 拓展打开时点击输入框
+			if (this.show && this.keyboardHeight > 0) {
+				this.clickHeight = this.keyboardHeight;
+				this.InputAnimate(this.clickHeight, 300);
+				this.closeMore();
+			}
+
+			if (this.showEmoji && this.keyboardHeight == 0) {
+				this.InputAnimate(293, 300);
+				this.clickHeight = 293;
+				animation.transition(
+					this.$refs.emojiMenu,
+					{
+						styles: {
+							height: '610rpx'
+						},
+						needLayout: true,
+						duration: 0, //ms
+						timingFunction: 'ease-in'
+					},
+					() => {}
+				);
+			}
+
+			if (this.showEmoji && this.keyboardHeight > 0) {
+				this.clickHeight = this.keyboardHeight;
+				this.InputAnimate(this.clickHeight, 300);
+
+				this.closeEmoji();
+			}
+
+			if (res.height) {
+				// this.pageToBottom(true);
+			}
+		});
+
+		this.regSendVoiceEvent((url) => {
+			if (!this.cancelRecord) {
+				this.send('audio', url, {
+					time: this.RecordTime
+				});
+			}
+		});
+
+		// this.pageToBottom(false);
+	},
+	created() {
+		const statusBarHeight = plus.navigator.getStatusbarHeight();
+		this.navBarHeight = statusBarHeight + uni.upx2px(150);
+	},
+	computed: {
+		...mapState('audio', ['Record', 'RecordTime']),
+		...mapState({
+			chat: (state) => state.user.chat,
+			user: (state) => state.user.user
+		}),
+		//是否是本人
+		isUserSelf() {
+			const id = this.user.id;
+
+			const user_id = this.chatItemIndex > -1 ? this.list[this.chatItemIndex].user_id : 0;
+			return user_id === id;
+		},
+		//判断撤回按钮
+		getMenuList() {
+			const item = this.list[this.chatItemIndex];
+			return this.menu.filter((e) => {
+				if (e.name === '撤回' && !this.isUserSelf) {
+					return false;
+				} else if (e.name === '复制' && item?.type !== 'text') {
+					return false;
+				} else {
+					return true;
+				}
+			});
+		},
+		// 聊天区域上滑
+		chatBodyBottom() {
+			return `top:${this.navBarHeight};bottom: 130rpx;`;
+		},
+
+		//占位位置
+		clickBody() {
+			console.log(this.clickHeight);
+			return `bottom:${uni.upx2px(130) + this.clickHeight}px;top:${this.navBarHeight}px  `;
+		},
+		// 预览图片列表
+		imageList() {
+			const arr = this.list.filter((item) => item.type === 'emoji' || item.type === 'image').map((item) => item.data);
+			return arr.reverse();
+		}
+	},
+	watch: {
+		message(newVal) {
+			if (newVal !== '') {
+				this.send_status = true;
+
+				this.$nextTick(() => {
+					animation.transition(
+						this.$refs.isValue,
+						{
+							styles: {
+								width: uni.upx2px(100),
+								opacity: 1
+							},
+							needLayout: true,
+							duration: 200, //ms
+							timingFunction: 'ease'
+						},
+						function () {}
+					);
+				});
+			} else {
+				animation.transition(
+					this.$refs.isValue,
+					{
+						styles: {
+							width: uni.upx2px(70),
+							opacity: 0
+						},
+						needLayout: true,
+						duration: 150, //ms
+						timingFunction: 'ease'
+					},
+					() => {
+						this.send_status = false;
+					}
+				);
+			}
+		}
+	}
+};
+</script>
+
+<style scoped>
+.send-animate {
+	height: 70rpx;
+	width: 70rpx;
+	opacity: 0;
+}
+
+.animate-more {
+	height: 0rpx;
+}
+
+.animate-record {
+	transform: scaleX(0);
+	opacity: 0;
+}
+
+.emoji {
+	height: 100rpx;
+
+	display: flex;
+	flex-direction: row;
+	justify-content: flex-start;
+	align-items: center;
+}
+
+.emoji-active {
+	background-color: #efefef;
+	border-radius: 25rpx;
+}
+</style>

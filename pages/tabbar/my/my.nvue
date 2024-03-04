@@ -1,0 +1,81 @@
+<template>
+	<view class="">
+		<!-- 导航栏 -->
+		<my-nav-bar title="我" :is-show-right="false" bg-color="background-color: #ffffff" style=""></my-nav-bar>
+		<my-divider></my-divider>
+		<my-cell is-single-item isShowRight @click="toUserInfo">
+			<u-avatar size="70" :src="user.avatar"></u-avatar>
+			<view class="ml-2 flex flex-column justify-center">
+				<text class="font">{{ nickname }}</text>
+				<text class="font text-muted mt-1">@{{ user.username }}</text>
+			</view>
+		</my-cell>
+
+		<my-divider></my-divider>
+		<my-cell @click="toQRCode" isTopItem="" isShowRight text="我的二维码" :extraIcon="'\ue601'"></my-cell>
+		<my-cell @click="toFava" isBottomItem="" isShowRight text="收藏"></my-cell>
+		<my-divider height="300"></my-divider>
+		<my-cell @click="logout" isSingleItem isShowRight text="退出登录"></my-cell>
+	</view>
+</template>
+
+<script>
+import MyNavBar from '@/components/my-ui/my-nav-bar.vue';
+import MyCell from '@/components/my-ui/my-cell.vue';
+import MyDivider from '@/components/my-ui/my-divider.vue';
+import { logout } from '@/api/user.js';
+import { mapState } from 'vuex';
+export default {
+	components: {
+		MyNavBar,
+		MyCell,
+		MyDivider
+	},
+	props: {
+		item: {
+			type: Object,
+			default: {}
+		}
+	},
+	data() {
+		return {};
+	},
+	methods: {
+		toUserInfo() {
+			uni.navigateTo({
+				url: '/pages/tabbar/my/userInfo/userInfo'
+			});
+		},
+		toQRCode() {
+			uni.navigateTo({
+				url: `/pages/tabbar/my/QRCode/QRCode?params=${encodeURIComponent(
+					JSON.stringify({
+						id: this.user.id,
+						name: this.user.nickname || this.user.username,
+						avatar: this.user.avatar
+					})
+				)}&type=user`
+			});
+		},
+		toFava() {
+			uni.navigateTo({
+				url: `/pages/tabbar/my/fava/fava`
+			});
+		},
+		logout() {
+			logout().then((res) => {
+				this.$store.dispatch('user/logout');
+			});
+		}
+	},
+	mounted() {},
+	computed: {
+		...mapState('user', ['user']),
+		nickname() {
+			return this.user.nickname || this.user.username;
+		}
+	}
+};
+</script>
+
+<style></style>
